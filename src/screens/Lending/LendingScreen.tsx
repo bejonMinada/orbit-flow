@@ -13,6 +13,7 @@ import {
   getLendingPayments,
   recordLendingPayment,
   updateLendingRequestDetails,
+  deleteApprovedLendingRequest,
 } from '../../repositories/lendingRepository';
 import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepository';
 import { LendingPayment, LendingRequest, Ledger, LendingStatus } from '../../types';
@@ -355,6 +356,30 @@ export default function LendingScreen() {
     );
   };
 
+  const deleteSettlementItem = async () => {
+    if (!selectedDetail) return;
+    try {
+      await deleteApprovedLendingRequest(selectedDetail.request.id);
+      setDetailModalVisible(false);
+      setSelectedDetail(null);
+      await load();
+    } catch (error) {
+      Alert.alert('Unable to delete request', error instanceof Error ? error.message : 'Please try again.');
+    }
+  };
+
+  const confirmDeleteSettlementItem = () => {
+    if (!selectedDetail) return;
+    Alert.alert(
+      'Delete settlement item?',
+      'This will remove this approved settlement item and return the released amount to its ledger balance.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: deleteSettlementItem },
+      ]
+    );
+  };
+
   const markInstallmentPaid = async (month: number) => {
     if (!selectedDetail || !selectedBreakdown || processingInstallmentMonth !== null) return;
     const requestId = selectedDetail.request.id;
@@ -372,8 +397,11 @@ export default function LendingScreen() {
       if (!installment) return;
 
       const threshold = getSettlementThreshold(latestRequest.currency);
-      const remainingRaw = Math.max(0, (installment.targetAmount + installment.penaltyAmount) - installment.paidAmount);
-      const remaining = remainingRaw <= threshold ? 0 : remainingRaw;
+      const cumulativeDue = latestBreakdown.installments
+        .filter((item) => item.month <= month)
+        .reduce((sum, item) => sum + item.targetAmount, 0);
+      const remainingRaw = Math.max(0, cumulativeDue - latestBreakdown.totalPaid);
+      const remaining = remainingRaw <= threshold ? 0 : Math.min(remainingRaw, latestBreakdown.outstanding);
       if (remaining <= 0) {
         setSelectedDetail({ request: latestRequest, payments: latestPayments });
         return;
@@ -529,6 +557,11 @@ export default function LendingScreen() {
               {selectedDetail?.request.status === 'approved' ? (
                 <TouchableOpacity style={[styles.headerEditBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => openEdit(selectedDetail.request)}>
                   <Text style={[styles.headerEditBtnText, isDark && { color: darkText }]}>Edit</Text>
+                </TouchableOpacity>
+              ) : null}
+              {selectedDetail?.request.status === 'approved' ? (
+                <TouchableOpacity style={styles.headerDeleteBtn} onPress={confirmDeleteSettlementItem}>
+                  <Text style={styles.headerDeleteBtnText}>Delete</Text>
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity style={[styles.cancelBtnTight, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setDetailModalVisible(false)}>
@@ -729,6 +762,8 @@ const styles = StyleSheet.create({
   headerActionBtnText: { color: '#fff', fontSize: FontSize.sm, fontWeight: '700' },
   headerEditBtn: { minHeight: 40, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   headerEditBtnText: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '700' },
+  headerDeleteBtn: { minHeight: 40, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center' },
+  headerDeleteBtnText: { color: '#fff', fontSize: FontSize.sm, fontWeight: '700' },
   fullScreenContent: { flex: 1, borderRadius: Radius.lg },
   modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, maxHeight: '90%' },
   settleBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, margin: Spacing.md, borderRadius: Radius.xl },

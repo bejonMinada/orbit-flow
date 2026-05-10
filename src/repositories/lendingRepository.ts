@@ -381,6 +381,24 @@ export async function updateLendingStatus(id: string, status: LendingStatus, ref
   );
 }
 
+export async function deleteApprovedLendingRequest(id: string): Promise<void> {
+  const db = getDb();
+  const request = await getLendingRequestById(id);
+  if (!request) throw new Error('Lending request not found.');
+  if (request.status !== 'approved') {
+    throw new Error('Only approved lending requests can be deleted.');
+  }
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      "DELETE FROM entries WHERE ledger_id = ? AND kind = 'cash_out' AND category_id = 'cat_lending' AND note LIKE ?",
+      [request.ledgerId, `%TXN: ${request.transactionCode}%`]
+    );
+    await db.runAsync('DELETE FROM lending_payments WHERE lending_request_id = ?', [id]);
+    await db.runAsync('DELETE FROM lending_requests WHERE id = ?', [id]);
+  });
+}
+
 type LendingEditableFields = {
   borrowerName: string;
   amount: number;
