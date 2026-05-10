@@ -5,7 +5,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Colors, Spacing, Radius, FontSize } from '../../constants';
+import {
+  Colors, Spacing, Radius, FontSize, Labels,
+} from '../../constants';
 import { getLedgers, createLedger, deleteLedger, getLedgerBalance } from '../../repositories/ledgerRepository';
 import { getWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
 import { Ledger } from '../../types';
@@ -72,6 +74,11 @@ export default function LedgersListScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
+      <View style={[styles.pageHeader, isDark && { backgroundColor: '#12161D', borderBottomColor: darkBorder }, { paddingTop: insets.top + Spacing.sm }]}>
+        <Text style={[styles.pageHeaderTitle, isDark && { color: darkText }]}>{Labels.cashLedgers}</Text>
+        <Text style={[styles.pageHeaderSubtitle, isDark && { color: darkMuted }]}>Track balances and transactions across your ledgers</Text>
+      </View>
+
       <FlatList
         data={ledgers}
         keyExtractor={(l) => l.id}
@@ -121,6 +128,9 @@ export default function LedgersListScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  pageHeader: { backgroundColor: Colors.surface, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  pageHeaderTitle: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700' },
+  pageHeaderSubtitle: { color: Colors.textSecondary, fontSize: FontSize.sm, marginTop: 4 },
   list: { padding: Spacing.md, paddingBottom: 100 },
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.md,
