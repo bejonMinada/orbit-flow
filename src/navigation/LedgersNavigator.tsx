@@ -24,7 +24,7 @@ export default function LedgersNavigator() {
     >
       <Stack.Screen name="LedgersList" component={LedgersListScreen} options={{ title: 'Cash Ledgers' }} />
       <Stack.Screen name="LedgerDetail" component={LedgerDetailScreen} options={({ route }) => ({ title: route.params.ledgerName })} />
-      <Stack.Screen name="AddEntry" component={AddEntryScreen} options={{ title: 'Add Entry' }} />
+      <Stack.Screen name="AddEntry" component={AddEntryScreen} options={{ title: 'Add Transaction' }} />
     </Stack.Navigator>
   );
 }

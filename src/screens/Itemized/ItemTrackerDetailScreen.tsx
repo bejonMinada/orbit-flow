@@ -89,7 +89,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
               <Text style={styles.itemPrice}>
                 {getItemPriceLabel(item)} / {item.unit}
               </Text>
-              {item.barcode ? <Text style={styles.itemBarcode}>📷 {item.barcode}</Text> : null}
+              {item.barcode ? <Text style={styles.itemBarcode}>Code: {item.barcode}</Text> : null}
             </View>
             <View style={styles.qtyControl}>
               <TouchableOpacity style={styles.qtyBtn} onPress={() => adjustQty(item, -1)}>

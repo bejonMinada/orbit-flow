@@ -14,6 +14,7 @@ import { Ledger, LendingRequest } from '../../types';
 import { RootTabParamList } from '../../navigation/BottomTabNavigator';
 import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
 import { SYSTEM_CATEGORIES } from '../../data/categories';
+import AscendingNLogo from '../../components/AscendingNLogo';
 
 const STATUS_LABEL: Record<LendingRequest['status'], string> = {
   pending_admin_approval: 'Pending Admin Approval',
@@ -32,6 +33,7 @@ const STATUS_STYLE: Record<LendingRequest['status'], { color: string }> = {
 interface ChartData {
   totalIncome: number;
   totalExpenses: number;
+  netBalance: number;
   categoryBreakdown: { categoryId: string; total: number }[];
 }
 
@@ -102,7 +104,6 @@ function CategoryBars({ breakdown, maxAmount, currency }: { breakdown: { categor
         return (
           <View key={categoryId} style={chartStyles.barRow}>
             <View style={chartStyles.barLabel}>
-              <Text style={chartStyles.barIcon}>{cat?.icon ?? '📌'}</Text>
               <Text style={chartStyles.barName} numberOfLines={1}>{cat?.name ?? categoryId}</Text>
             </View>
             <View style={chartStyles.barTrack}>
@@ -125,7 +126,7 @@ export default function HomeScreen() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [trackerCount, setTrackerCount] = useState(0);
   const [trackedItemCount, setTrackedItemCount] = useState(0);
-  const [chartData, setChartData] = useState<ChartData>({ totalIncome: 0, totalExpenses: 0, categoryBreakdown: [] });
+  const [chartData, setChartData] = useState<ChartData>({ totalIncome: 0, totalExpenses: 0, netBalance: 0, categoryBreakdown: [] });
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -166,38 +167,58 @@ export default function HomeScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.header}>
+        <View style={styles.brandWatermark}>
+          <AscendingNLogo size={60} subtle />
+        </View>
         <View style={styles.brandRow}>
           <View style={styles.logoBadge}>
-            <Text style={styles.logoEmoji}>📊</Text>
+            <AscendingNLogo size={26} />
           </View>
           <View>
             <Text style={styles.appName}>{Labels.appName}</Text>
             <Text style={styles.subtitle}>Dashboard</Text>
           </View>
         </View>
-        <Text style={styles.headerNote}>See your balances, inventory, and lending activity in one place.</Text>
+        <Text style={styles.headerNote}>Track what is truly saved, spent, and owed with a net-first view.</Text>
       </View>
 
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, styles.primaryCard]}>
-          <Text style={styles.balanceLabel}>Total Balance</Text>
+          <Text style={styles.balanceLabel}>Net Balance</Text>
           <Text style={styles.balanceAmount}>{formatAmount(totalBalance, 'PHP')}</Text>
           <Text style={styles.ledgerCount}>{ledgers.length} Cash Ledger{ledgers.length !== 1 ? 's' : ''}</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Tracked Items</Text>
           <Text style={styles.statValue}>{trackedItemCount}</Text>
-          <Text style={styles.statHint}>{trackerCount} tracker{trackerCount !== 1 ? 's' : ''} active</Text>
+          <Text style={styles.statHint}>{trackerCount} inventory list{trackerCount !== 1 ? 's' : ''} active</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Pending Lending</Text>
+          <Text style={styles.statLabel}>Pending Settlements</Text>
           <Text style={styles.statValue}>{lendingMetrics.pendingCount}</Text>
-          <Text style={styles.statHint}>{lendingMetrics.approvedCount} active loan{lendingMetrics.approvedCount !== 1 ? 's' : ''}</Text>
+          <Text style={styles.statHint}>{lendingMetrics.approvedCount} active request{lendingMetrics.approvedCount !== 1 ? 's' : ''}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Outstanding Lending</Text>
+          <Text style={styles.statLabel}>Outstanding Net Owed</Text>
           <Text style={styles.statValueSmall}>{outstandingLabel}</Text>
           <Text style={styles.statHint}>{lendingMetrics.settledCount} settled request{lendingMetrics.settledCount !== 1 ? 's' : ''}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Net Result</Text>
+      <View style={styles.chartCard}>
+        <View style={styles.chartAmounts}>
+          <View>
+            <Text style={styles.chartAmountLabel}>Calculated Net</Text>
+            <Text
+              style={[
+                styles.chartAmount,
+                { color: chartData.netBalance >= 0 ? Colors.cashIn : Colors.cashOut },
+              ]}
+            >
+              {formatAmount(chartData.netBalance, 'PHP')}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -229,10 +250,10 @@ export default function HomeScreen() {
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.quickActions}>
         {[
-          { emoji: '💰', label: 'Cash Ledgers', route: 'Ledgers' as const },
-          { emoji: '🧾', label: 'Itemized', route: 'Itemized' as const },
-          { emoji: '💵', label: 'Lending', route: 'Lending' as const },
-          { emoji: '⚙️', label: 'Settings', route: 'Settings' as const },
+          { label: 'Cash Ledgers', route: 'Ledgers' as const },
+          { label: 'Itemized Inventories', route: 'Itemized' as const },
+          { label: 'Settlement Hub', route: 'Lending' as const },
+          { label: 'Settings', route: 'Settings' as const },
         ].map((a) => (
           <TouchableOpacity
             key={a.label}
@@ -240,7 +261,6 @@ export default function HomeScreen() {
             activeOpacity={0.86}
             onPress={() => navigation.navigate(a.route)}
           >
-            <Text style={styles.quickEmoji}>{a.emoji}</Text>
             <Text style={styles.quickLabel}>{a.label}</Text>
           </TouchableOpacity>
         ))}
@@ -248,7 +268,7 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Recent Ledgers</Text>
       {ledgers.length === 0 ? (
-        <Text style={styles.empty}>No ledgers yet. Go to Cash Ledgers tab to add one.</Text>
+        <Text style={styles.empty}>No ledgers yet. Go to Cash Ledgers to add one.</Text>
       ) : (
         ledgers.slice(0, 3).map((l) => (
           <View key={l.id} style={styles.ledgerCard}>
@@ -263,7 +283,7 @@ export default function HomeScreen() {
         ))
       )}
 
-      <Text style={styles.sectionTitle}>Lending Snapshot</Text>
+      <Text style={styles.sectionTitle}>Settlement Snapshot</Text>
       {lendingRequests.length === 0 ? (
         <Text style={styles.empty}>No lending requests yet.</Text>
       ) : (
@@ -300,8 +320,7 @@ const chartStyles = StyleSheet.create({
   progressFill: { height: 12, borderRadius: 6 },
   savingsHint: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 4 },
   barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm, gap: Spacing.xs },
-  barLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, width: 120 },
-  barIcon: { fontSize: 14 },
+  barLabel: { flexDirection: 'row', alignItems: 'center', width: 120 },
   barName: { fontSize: FontSize.xs, color: Colors.textSecondary, flex: 1 },
   barTrack: { flex: 1, height: 10, backgroundColor: Colors.surfaceAlt, borderRadius: 5, overflow: 'hidden' },
   barFill: { height: 10, borderRadius: 5, minWidth: 4 },
@@ -311,7 +330,8 @@ const chartStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: Spacing.md, paddingBottom: Spacing.xxl },
-  header: { marginBottom: Spacing.lg },
+  header: { marginBottom: Spacing.lg, position: 'relative' },
+  brandWatermark: { position: 'absolute', right: 0, top: 0 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   logoBadge: {
     width: 52,
@@ -321,7 +341,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoEmoji: { fontSize: 26 },
   appName: { fontSize: FontSize.xxxl, fontWeight: 'bold', color: Colors.primary },
   subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: 2, fontWeight: '600' },
   headerNote: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: Spacing.sm },
@@ -368,8 +387,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md, alignItems: 'center', flex: 1, minWidth: '40%',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  quickEmoji: { fontSize: 28, marginBottom: 4 },
-  quickLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, textAlign: 'center' },
+  quickLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, textAlign: 'center', fontWeight: '600' },
   ledgerCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.md,
     padding: Spacing.md, marginBottom: Spacing.sm, flexDirection: 'row', justifyContent: 'space-between',

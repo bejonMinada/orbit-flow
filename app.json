@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "OrbitFlow",
-    "slug": "orbit-flow",
+    "name": "Netto",
+    "slug": "netto",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.bejonminada.orbitflow"
+      "bundleIdentifier": "com.bejonminada.netto"
     },
     "android": {
-      "package": "com.bejonminada.orbitflow",
+      "package": "com.bejonminada.netto",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -21,7 +21,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow OrbitFlow to use your camera for barcode and QR scanning."
+          "cameraPermission": "Allow Netto to use your camera for barcode and QR scanning."
         }
       ],
       "expo-image-picker"

@@ -31,12 +31,12 @@ export default function ItemizedListScreen({ navigation }: Props) {
       setModalVisible(false);
       load();
     } catch (error) {
-      Alert.alert('Unable to create tracker', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Unable to create inventory', error instanceof Error ? error.message : 'Please try again.');
     }
   };
 
   const handleDelete = (id: string, name: string) => {
-    Alert.alert('Delete Tracker', `Delete "${name}" and all its items?`, [
+      Alert.alert('Delete Inventory', `Delete "${name}" and all its items?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { await deleteItemTracker(id); load(); } },
     ]);
@@ -48,7 +48,7 @@ export default function ItemizedListScreen({ navigation }: Props) {
         data={trackers}
         keyExtractor={(t) => t.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No trackers yet. Tap + to create one.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>No inventories yet. Tap + to create one.</Text>}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
@@ -68,8 +68,8 @@ export default function ItemizedListScreen({ navigation }: Props) {
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>New Itemized Tracker</Text>
-            <TextInput style={styles.input} placeholder="Tracker name (e.g. Groceries)" value={newName} onChangeText={setNewName} />
+            <Text style={styles.modalTitle}>New Itemized Inventory</Text>
+            <TextInput style={styles.input} placeholder="Inventory name (e.g. Groceries)" value={newName} onChangeText={setNewName} />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>

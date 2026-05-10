@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, Alert,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Spacing, Radius, FontSize } from '../../constants';
-import { getEntries, deleteEntry, getLedgerBalance } from '../../repositories/ledgerRepository';
+import { getEntries, deleteEntry, getLedgerBalance, updateEntry } from '../../repositories/ledgerRepository';
 import { Entry } from '../../types';
 import { LedgersStackParamList } from '../../navigation/LedgersNavigator';
 import { formatAmount } from '../../data/currencies';
@@ -17,6 +17,12 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
   const { ledgerId, currency } = route.params;
   const [entries, setEntries] = useState<Entry[]>([]);
   const [balance, setBalance] = useState(0);
+  const [editVisible, setEditVisible] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState('');
+  const [editKind, setEditKind] = useState<Entry['kind']>('cash_out');
+  const [editAmount, setEditAmount] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('cat_other');
 
   const load = useCallback(async () => {
     const [es, bal] = await Promise.all([
@@ -30,7 +36,7 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete Entry', 'Remove this entry?', [
+    Alert.alert('Delete Transaction', 'Remove this transaction from history?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { await deleteEntry(id); load(); } },
     ]);
@@ -38,6 +44,43 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
 
   const getCategoryName = (id: string) =>
     SYSTEM_CATEGORIES.find((c) => c.id === id)?.name ?? id;
+
+  const openEditor = (entry: Entry) => {
+    setSelectedEntryId(entry.id);
+    setEditKind(entry.kind);
+    setEditAmount(String(entry.amount));
+    setEditNote(entry.note);
+    setEditCategoryId(entry.categoryId);
+    setEditVisible(true);
+  };
+
+  const handleUpdate = () => {
+    const parsed = parseFloat(editAmount);
+    if (isNaN(parsed) || parsed <= 0) {
+      Alert.alert('Invalid amount', 'Please enter a valid positive amount.');
+      return;
+    }
+    Alert.alert(
+      'Edit Transaction',
+      'This will recalculate your dashboard totals and balance immediately. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Apply Changes',
+          onPress: async () => {
+            await updateEntry(selectedEntryId, {
+              kind: editKind,
+              amount: parsed,
+              note: editNote.trim(),
+              categoryId: editCategoryId,
+            });
+            setEditVisible(false);
+            load();
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -50,9 +93,9 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
         data={entries}
         keyExtractor={(e) => e.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No entries yet.</Text>}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.entry} onLongPress={() => handleDelete(item.id)}>
+        ListEmptyComponent={<Text style={styles.empty}>No transactions yet.</Text>}
+          renderItem={({ item }) => (
+          <TouchableOpacity style={styles.entry} onPress={() => openEditor(item)} onLongPress={() => handleDelete(item.id)}>
             <View style={[styles.kindDot, { backgroundColor: item.kind === 'cash_in' ? Colors.cashIn : Colors.cashOut }]} />
             <View style={styles.entryMid}>
               <Text style={styles.entryNote}>{item.note || getCategoryName(item.categoryId)}</Text>
@@ -68,6 +111,69 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddEntry', { ledgerId, currency })}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      <Modal visible={editVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Edit Transaction</Text>
+            <Text style={styles.warningText}>Warning: edits affect dashboard totals and history accuracy.</Text>
+
+            <Text style={styles.label}>Type</Text>
+            <View style={styles.toggle}>
+              {(['cash_in', 'cash_out'] as Entry['kind'][]).map((k) => (
+                <TouchableOpacity
+                  key={k}
+                  style={[styles.toggleBtn, editKind === k && { backgroundColor: k === 'cash_in' ? Colors.cashIn : Colors.cashOut }]}
+                  onPress={() => setEditKind(k)}
+                >
+                  <Text style={[styles.toggleText, editKind === k && styles.toggleTextActive]}>
+                    {k === 'cash_in' ? 'Cash In' : 'Cash Out'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Amount ({currency})</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0.00"
+              keyboardType="decimal-pad"
+              value={editAmount}
+              onChangeText={setEditAmount}
+            />
+
+            <Text style={styles.label}>Note</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Optional note"
+              value={editNote}
+              onChangeText={setEditNote}
+            />
+
+            <Text style={styles.label}>Category</Text>
+            <View style={styles.categories}>
+              {SYSTEM_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[styles.catChip, editCategoryId === cat.id && { backgroundColor: cat.color }]}
+                  onPress={() => setEditCategoryId(cat.id)}
+                >
+                  <Text style={[styles.catName, editCategoryId === cat.id && { color: '#fff' }]}>{cat.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleUpdate}>
+                <Text style={styles.saveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -97,4 +203,32 @@ const styles = StyleSheet.create({
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
   },
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', lineHeight: 32 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg },
+  modalTitle: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.textPrimary },
+  warningText: { color: Colors.warning, fontSize: FontSize.xs, marginTop: 6 },
+  label: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textSecondary, marginTop: Spacing.md, marginBottom: 4 },
+  input: {
+    borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
+    padding: Spacing.md, fontSize: FontSize.md, color: Colors.textPrimary, backgroundColor: Colors.surfaceAlt,
+  },
+  toggle: { flexDirection: 'row', gap: Spacing.sm },
+  toggleBtn: {
+    flex: 1, padding: Spacing.md, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.border, alignItems: 'center', backgroundColor: Colors.surface,
+  },
+  toggleText: { fontWeight: '600', color: Colors.textSecondary },
+  toggleTextActive: { color: '#fff' },
+  categories: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  catChip: {
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
+    borderRadius: Radius.full, backgroundColor: Colors.surfaceAlt,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  catName: { fontSize: FontSize.xs, color: Colors.textSecondary },
+  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
+  cancelBtn: { flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center' },
+  cancelText: { color: Colors.textSecondary, fontWeight: '600' },
+  saveBtn: { flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center' },
+  saveText: { color: '#fff', fontWeight: '600' },
 });

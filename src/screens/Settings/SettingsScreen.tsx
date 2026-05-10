@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
+import { Colors, Spacing, Radius, FontSize, Labels, SyncConstants } from '../../constants';
 import { CURRENCIES } from '../../data/currencies';
 
 export default function SettingsScreen() {
@@ -40,20 +40,20 @@ export default function SettingsScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Data & Sync</Text>
-        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Export', 'Export feature coming in Phase 2.')}>
-          <Text style={styles.rowLabel}>📤 Export Data</Text>
+        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Export', `Export to ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
+          <Text style={styles.rowLabel}>Export Data</Text>
           <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Import', 'Import feature coming in Phase 2.')}>
-          <Text style={styles.rowLabel}>📥 Import Data</Text>
+        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Import', `Import from ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
+          <Text style={styles.rowLabel}>Import Data</Text>
           <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Google Drive', 'Google Drive sync coming in Phase 2.')}>
-          <Text style={styles.rowLabel}>☁️ Google Drive Sync</Text>
+          <Text style={styles.rowLabel}>Google Drive Sync</Text>
           <Text style={styles.rowValue}>Phase 2</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.row} onPress={() => Alert.alert('OneDrive', 'OneDrive sync coming in Phase 2.')}>
-          <Text style={styles.rowLabel}>☁️ OneDrive Sync</Text>
+          <Text style={styles.rowLabel}>OneDrive Sync</Text>
           <Text style={styles.rowValue}>Phase 2</Text>
         </TouchableOpacity>
       </View>
@@ -61,11 +61,11 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Features</Text>
         {[
-          { label: '🧾 Receipt OCR Autofill', phase: 'Phase 4' },
-          { label: '🎯 Goal-Based Sinking Funds', phase: 'Phase 3' },
-          { label: '📉 Burn-Rate Forecasting', phase: 'Phase 4' },
-          { label: '🔐 Biometric Lock', phase: 'Phase 3' },
-          { label: '👥 Shared Ledgers (RBAC)', phase: 'Phase 2' },
+          { label: 'Receipt OCR Autofill', phase: 'Phase 4' },
+          { label: 'Goal-Based Sinking Funds', phase: 'Phase 3' },
+          { label: 'Burn-Rate Forecasting', phase: 'Phase 4' },
+          { label: 'Biometric Lock', phase: 'Phase 3' },
+          { label: 'Group Contributions (RBAC)', phase: 'Phase 2' },
         ].map((f) => (
           <View key={f.label} style={styles.row}>
             <Text style={styles.rowLabel}>{f.label}</Text>
