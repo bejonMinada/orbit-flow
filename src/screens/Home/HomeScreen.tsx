@@ -1,38 +1,69 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
 import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepository';
 import { getLendingRequests } from '../../repositories/lendingRepository';
+import { getItemTrackers } from '../../repositories/itemRepository';
 import { formatAmount } from '../../data/currencies';
 import { Ledger, LendingRequest } from '../../types';
+import { RootTabParamList } from '../../navigation/BottomTabNavigator';
+import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
+
+const STATUS_LABEL: Record<LendingRequest['status'], string> = {
+  pending_admin_approval: 'Pending Admin Approval',
+  approved: 'Approved',
+  declined: 'Declined',
+  settled: 'Settled',
+};
+
+const STATUS_STYLE: Record<LendingRequest['status'], { color: string }> = {
+  pending_admin_approval: { color: Colors.warning },
+  approved: { color: Colors.approved },
+  declined: { color: Colors.declined },
+  settled: { color: Colors.settled },
+};
 
 export default function HomeScreen() {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [ledgerBalances, setLedgerBalances] = useState<Record<string, number>>({});
+  const [lendingRequests, setLendingRequests] = useState<LendingRequest[]>([]);
   const [totalBalance, setTotalBalance] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [trackerCount, setTrackerCount] = useState(0);
+  const [trackedItemCount, setTrackedItemCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const ls = await getLedgers();
+      const [ls, lrs, trackers] = await Promise.all([
+        getLedgers(),
+        getLendingRequests(),
+        getItemTrackers(),
+      ]);
+
       setLedgers(ls);
-      let total = 0;
-      for (const l of ls) {
-        const bal = await getLedgerBalance(l.id, l.baseCurrency);
-        total += bal;
-      }
-      setTotalBalance(total);
-      const lrs: LendingRequest[] = await getLendingRequests();
-      setPendingCount(lrs.filter((r) => r.status === 'pending_admin_approval').length);
+      setLendingRequests(lrs);
+      setTrackerCount(trackers.length);
+      setTrackedItemCount(trackers.reduce((count, tracker) => count + tracker.items.length, 0));
+
+      const balances = await Promise.all(
+        ls.map(async (ledger) => [ledger.id, await getLedgerBalance(ledger.id, ledger.baseCurrency)] as const)
+      );
+      const nextLedgerBalances = Object.fromEntries(balances);
+      setLedgerBalances(nextLedgerBalances);
+      setTotalBalance(Object.values(nextLedgerBalances).reduce((sum, balance) => sum + balance, 0));
     } catch (_) {}
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+  const lendingMetrics = useMemo(() => getLendingMetrics(lendingRequests), [lendingRequests]);
+  const outstandingLabel = useMemo(() => formatLendingOutstanding(lendingRequests), [lendingRequests]);
 
   return (
     <ScrollView
@@ -41,34 +72,58 @@ export default function HomeScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.header}>
-        <Text style={styles.appName}>{Labels.appName}</Text>
-        <Text style={styles.subtitle}>Your financial orbit</Text>
-      </View>
-
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Total Balance</Text>
-        <Text style={styles.balanceAmount}>{formatAmount(totalBalance, 'PHP')}</Text>
-        <Text style={styles.ledgerCount}>{ledgers.length} Cash Ledger{ledgers.length !== 1 ? 's' : ''}</Text>
-      </View>
-
-      {pendingCount > 0 && (
-        <View style={styles.alertCard}>
-          <Text style={styles.alertText}>🔔 {pendingCount} pending lending request{pendingCount > 1 ? 's' : ''} awaiting approval</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.logoBadge}>
+            <Text style={styles.logoEmoji}>🪐</Text>
+          </View>
+          <View>
+            <Text style={styles.appName}>{Labels.appName}</Text>
+            <Text style={styles.subtitle}>Dashboard</Text>
+          </View>
         </View>
-      )}
+        <Text style={styles.headerNote}>See your balances, inventory, and lending activity in one place.</Text>
+      </View>
+
+      <View style={styles.statsGrid}>
+        <View style={[styles.statCard, styles.primaryCard]}>
+          <Text style={styles.balanceLabel}>Total Balance</Text>
+          <Text style={styles.balanceAmount}>{formatAmount(totalBalance, 'PHP')}</Text>
+          <Text style={styles.ledgerCount}>{ledgers.length} Cash Ledger{ledgers.length !== 1 ? 's' : ''}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Tracked Items</Text>
+          <Text style={styles.statValue}>{trackedItemCount}</Text>
+          <Text style={styles.statHint}>{trackerCount} tracker{trackerCount !== 1 ? 's' : ''} active</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Pending Lending</Text>
+          <Text style={styles.statValue}>{lendingMetrics.pendingCount}</Text>
+          <Text style={styles.statHint}>{lendingMetrics.approvedCount} active loan{lendingMetrics.approvedCount !== 1 ? 's' : ''}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Outstanding Lending</Text>
+          <Text style={styles.statValueSmall}>{outstandingLabel}</Text>
+          <Text style={styles.statHint}>{lendingMetrics.settledCount} settled request{lendingMetrics.settledCount !== 1 ? 's' : ''}</Text>
+        </View>
+      </View>
 
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.quickActions}>
         {[
-          { emoji: '💳', label: 'Cash Ledgers' },
-          { emoji: '📦', label: 'Itemized' },
-          { emoji: '🤝', label: 'Lending' },
-          { emoji: '⚙️', label: 'Settings' },
+          { emoji: '💳', label: 'Cash Ledgers', route: 'Ledgers' as const },
+          { emoji: '📦', label: 'Itemized', route: 'Itemized' as const },
+          { emoji: '🤝', label: 'Lending', route: 'Lending' as const },
+          { emoji: '⚙️', label: 'Settings', route: 'Settings' as const },
         ].map((a) => (
-          <View key={a.label} style={styles.quickAction}>
+          <TouchableOpacity
+            key={a.label}
+            style={styles.quickAction}
+            activeOpacity={0.86}
+            onPress={() => navigation.navigate(a.route)}
+          >
             <Text style={styles.quickEmoji}>{a.emoji}</Text>
             <Text style={styles.quickLabel}>{a.label}</Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
 
@@ -78,8 +133,31 @@ export default function HomeScreen() {
       ) : (
         ledgers.slice(0, 3).map((l) => (
           <View key={l.id} style={styles.ledgerCard}>
-            <Text style={styles.ledgerName}>{l.name}</Text>
-            <Text style={styles.ledgerCurrency}>{l.baseCurrency}</Text>
+            <View>
+              <Text style={styles.ledgerName}>{l.name}</Text>
+              <Text style={styles.ledgerCurrency}>{l.baseCurrency}</Text>
+            </View>
+            <Text style={[styles.ledgerBalance, { color: (ledgerBalances[l.id] ?? 0) >= 0 ? Colors.cashIn : Colors.cashOut }]}>
+              {formatAmount(ledgerBalances[l.id] ?? 0, l.baseCurrency)}
+            </Text>
+          </View>
+        ))
+      )}
+
+      <Text style={styles.sectionTitle}>Lending Snapshot</Text>
+      {lendingRequests.length === 0 ? (
+        <Text style={styles.empty}>No lending requests yet.</Text>
+      ) : (
+        lendingRequests.slice(0, 4).map((request) => (
+          <View key={request.id} style={styles.lendingCard}>
+            <View style={styles.lendingTop}>
+              <Text style={styles.lendingName}>{request.borrowerName}</Text>
+              <Text style={[styles.lendingStatus, STATUS_STYLE[request.status]]}>
+                {STATUS_LABEL[request.status]}
+              </Text>
+            </View>
+            <Text style={styles.lendingAmount}>{formatAmount(request.amount, request.currency)}</Text>
+            <Text style={styles.lendingMeta}>{request.createdAt.split('T')[0]}</Text>
           </View>
         ))
       )}
@@ -91,21 +169,41 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   header: { marginBottom: Spacing.lg },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  logoBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoEmoji: { fontSize: 26 },
   appName: { fontSize: FontSize.xxxl, fontWeight: 'bold', color: Colors.primary },
-  subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: 2 },
-  balanceCard: {
+  subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: 2, fontWeight: '600' },
+  headerNote: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: Spacing.sm },
+  statsGrid: { gap: Spacing.sm, marginBottom: Spacing.md },
+  statCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  primaryCard: {
     backgroundColor: Colors.primary, borderRadius: Radius.lg,
-    padding: Spacing.lg, marginBottom: Spacing.md,
+    padding: Spacing.lg,
   },
   balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: FontSize.sm },
   balanceAmount: { color: '#fff', fontSize: FontSize.xxxl, fontWeight: 'bold', marginTop: 4 },
   ledgerCount: { color: 'rgba(255,255,255,0.7)', fontSize: FontSize.sm, marginTop: 4 },
-  alertCard: {
-    backgroundColor: '#FFF3CD', borderRadius: Radius.md,
-    padding: Spacing.md, marginBottom: Spacing.md,
-    borderLeftWidth: 4, borderLeftColor: Colors.warning,
-  },
-  alertText: { color: '#856404', fontSize: FontSize.sm },
+  statLabel: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '600' },
+  statValue: { color: Colors.textPrimary, fontSize: FontSize.xxl, fontWeight: '700', marginTop: 4 },
+  statValueSmall: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700', marginTop: 6 },
+  statHint: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: 4 },
   sectionTitle: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm },
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
   quickAction: {
@@ -118,9 +216,27 @@ const styles = StyleSheet.create({
   ledgerCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.md,
     padding: Spacing.md, marginBottom: Spacing.sm, flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   ledgerName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
   ledgerCurrency: { fontSize: FontSize.sm, color: Colors.textSecondary },
+  ledgerBalance: { fontSize: FontSize.md, fontWeight: '700' },
+  lendingCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  lendingTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
+  lendingName: { color: Colors.textPrimary, fontSize: FontSize.md, fontWeight: '600', flex: 1 },
+  lendingStatus: { fontSize: FontSize.xs, fontWeight: '700', textTransform: 'capitalize' },
+  lendingAmount: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700', marginTop: 6 },
+  lendingMeta: { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 4 },
   empty: { color: Colors.textMuted, fontSize: FontSize.sm, fontStyle: 'italic' },
 });

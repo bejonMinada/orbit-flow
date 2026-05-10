@@ -5,9 +5,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
 import { getLendingRequests, createLendingRequest, updateLendingStatus } from '../../repositories/lendingRepository';
-import { getLedgers } from '../../repositories/ledgerRepository';
+import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepository';
 import { LendingRequest, Ledger, LendingStatus } from '../../types';
 import { formatAmount } from '../../data/currencies';
+import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
 
 const STATUS_COLOR: Record<LendingStatus, string> = {
   pending_admin_approval: Colors.warning,
@@ -26,6 +27,7 @@ const STATUS_LABEL: Record<LendingStatus, string> = {
 export default function LendingScreen() {
   const [requests, setRequests] = useState<LendingRequest[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [ledgerBalances, setLedgerBalances] = useState<Record<string, number>>({});
   const [modalVisible, setModalVisible] = useState(false);
   const [borrowerName, setBorrowerName] = useState('');
   const [amount, setAmount] = useState('');
@@ -37,42 +39,67 @@ export default function LendingScreen() {
     const [rs, ls] = await Promise.all([getLendingRequests(), getLedgers()]);
     setRequests(rs);
     setLedgers(ls);
+    const balances = await Promise.all(
+      ls.map(async (ledger) => [ledger.id, await getLedgerBalance(ledger.id, ledger.baseCurrency)] as const)
+    );
+    setLedgerBalances(Object.fromEntries(balances));
     if (ls.length > 0 && !selectedLedgerId) setSelectedLedgerId(ls[0].id);
   }, [selectedLedgerId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  const lendingMetrics = getLendingMetrics(requests);
+  const outstandingLabel = formatLendingOutstanding(requests);
 
   const handleAdd = async () => {
     if (!borrowerName.trim() || !amount.trim() || !selectedLedgerId) {
       Alert.alert('Missing fields', 'Please fill in borrower name, amount and select a ledger.');
       return;
     }
-    const ledger = ledgers.find((l) => l.id === selectedLedgerId);
-    await createLendingRequest(selectedLedgerId, borrowerName.trim(), parseFloat(amount), ledger?.baseCurrency ?? 'PHP', refNum, undefined, note);
-    setBorrowerName(''); setAmount(''); setRefNum(''); setNote('');
-    setModalVisible(false);
-    load();
+    try {
+      const parsedAmount = parseFloat(amount);
+      const ledger = ledgers.find((l) => l.id === selectedLedgerId);
+      await createLendingRequest(selectedLedgerId, borrowerName.trim(), parsedAmount, ledger?.baseCurrency ?? 'PHP', refNum.trim(), undefined, note.trim());
+      setBorrowerName(''); setAmount(''); setRefNum(''); setNote('');
+      setModalVisible(false);
+      load();
+    } catch (error) {
+      Alert.alert('Unable to create lending request', error instanceof Error ? error.message : 'Please try again.');
+    }
   };
 
   const handleAction = (req: LendingRequest) => {
+    const runAction = async (status: LendingStatus) => {
+      try {
+        await updateLendingStatus(req.id, status);
+        await load();
+      } catch (error) {
+        Alert.alert('Unable to update request', error instanceof Error ? error.message : 'Please try again.');
+      }
+    };
+
     if (req.status === 'pending_admin_approval') {
       Alert.alert('Action', `Manage request from ${req.borrowerName}`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Approve', onPress: () => updateLendingStatus(req.id, 'approved').then(load) },
-        { text: 'Decline', style: 'destructive', onPress: () => updateLendingStatus(req.id, 'declined').then(load) },
+        { text: 'Approve', onPress: () => runAction('approved') },
+        { text: 'Decline', style: 'destructive', onPress: () => runAction('declined') },
       ]);
     } else if (req.status === 'approved') {
       Alert.alert('Mark Settled?', `Mark this as settled?`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Mark Settled', onPress: () => updateLendingStatus(req.id, 'settled').then(load) },
+        { text: 'Mark Settled', onPress: () => runAction('settled') },
       ]);
     }
   };
+
+  const selectedLedger = ledgers.find((ledger) => ledger.id === selectedLedgerId);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{Labels.creditMonitor}</Text>
+        <Text style={styles.headerSubtitle}>
+          {lendingMetrics.pendingCount} pending · {lendingMetrics.approvedCount} active · {outstandingLabel}
+        </Text>
       </View>
 
       <FlatList
@@ -89,6 +116,7 @@ export default function LendingScreen() {
               </View>
             </View>
             <Text style={styles.cardAmount}>{formatAmount(item.amount, item.currency)}</Text>
+            <Text style={styles.cardLedger}>Ledger: {ledgers.find((ledger) => ledger.id === item.ledgerId)?.name ?? 'Unknown'}</Text>
             {item.referenceNumber ? <Text style={styles.cardRef}>Ref: {item.referenceNumber}</Text> : null}
             {item.note ? <Text style={styles.cardNote}>{item.note}</Text> : null}
             <Text style={styles.cardDate}>{item.createdAt.split('T')[0]}</Text>
@@ -115,8 +143,13 @@ export default function LendingScreen() {
                 >
                   <Text style={[styles.ledgerChipText, selectedLedgerId === l.id && { color: '#fff' }]}>{l.name}</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
+                ))}
+              </View>
+              {selectedLedger ? (
+                <Text style={styles.availableBalance}>
+                  Available balance in {selectedLedger.name}: {formatAmount(ledgerBalances[selectedLedger.id] ?? 0, selectedLedger.baseCurrency)}
+                </Text>
+              ) : null}
 
             {[
               { label: 'Borrower Name', value: borrowerName, onChange: setBorrowerName, placeholder: 'Full name' },
@@ -149,6 +182,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { backgroundColor: Colors.primary, padding: Spacing.lg, paddingTop: Spacing.xl },
   headerTitle: { color: '#fff', fontSize: FontSize.xl, fontWeight: 'bold' },
+  headerSubtitle: { color: 'rgba(255,255,255,0.82)', fontSize: FontSize.sm, marginTop: 4 },
   list: { padding: Spacing.md, paddingBottom: 100 },
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md,
@@ -159,6 +193,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.full },
   badgeText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },
   cardAmount: { fontSize: FontSize.xl, fontWeight: 'bold', color: Colors.textPrimary },
+  cardLedger: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 4 },
   cardRef: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
   cardNote: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2, fontStyle: 'italic' },
   cardDate: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 4 },
@@ -179,6 +214,7 @@ const styles = StyleSheet.create({
   ledgerChip: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.full, backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.border },
   ledgerChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   ledgerChipText: { fontSize: FontSize.sm, color: Colors.textSecondary },
+  availableBalance: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 4 },
   modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md, marginBottom: Spacing.xl },
   cancelBtn: { flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center' },
   cancelText: { color: Colors.textSecondary, fontWeight: '600' },

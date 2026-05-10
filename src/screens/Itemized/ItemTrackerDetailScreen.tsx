@@ -9,6 +9,7 @@ import { getTrackedItems, createTrackedItem, updateTrackedItemQuantity } from '.
 import { TrackedItem } from '../../types';
 import { ItemizedStackParamList } from '../../navigation/ItemizedNavigator';
 import { formatAmount } from '../../data/currencies';
+import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 
 type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemTrackerDetail'>;
 
@@ -22,6 +23,8 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const [price, setPrice] = useState('0');
   const [currency, setCurrency] = useState('PHP');
   const [barcode, setBarcode] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [scannerMode, setScannerMode] = useState<'register' | 'search' | null>(null);
 
   const load = useCallback(async () => {
     const its = await getTrackedItems(trackerId);
@@ -46,18 +49,42 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     updateTrackedItemQuantity(item.id, newQty).then(load);
   };
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredItems = normalizedSearch
+    ? items.filter((item) => item.name.toLowerCase().includes(normalizedSearch)
+      || item.barcode?.toLowerCase().includes(normalizedSearch))
+    : items;
+  const getItemPriceLabel = (item: TrackedItem) => {
+    const latestPriceRecord = item.priceHistory[item.priceHistory.length - 1];
+    return formatAmount(latestPriceRecord?.price ?? item.lastPrice, latestPriceRecord?.currency ?? currency);
+  };
+
   return (
     <View style={styles.container}>
+      <View style={styles.searchBar}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name or barcode"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity style={styles.scanBtn} onPress={() => setScannerMode('search')}>
+          <Text style={styles.scanBtnText}>Scan</Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
-        data={items}
+        data={filteredItems}
         keyExtractor={(i) => i.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No items yet. Tap + to add one.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{items.length === 0 ? 'No items yet. Tap + to add one.' : 'No items matched your search.'}</Text>}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardLeft}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemPrice}>{formatAmount(item.lastPrice, 'PHP')} / {item.unit}</Text>
+              <Text style={styles.itemPrice}>
+                {getItemPriceLabel(item)} / {item.unit}
+              </Text>
               {item.barcode ? <Text style={styles.itemBarcode}>📷 {item.barcode}</Text> : null}
             </View>
             <View style={styles.qtyControl}>
@@ -81,25 +108,36 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Add Tracked Item</Text>
-            {[
-              { label: 'Name', value: name, onChange: setName, placeholder: 'Item name' },
-              { label: 'Unit', value: unit, onChange: setUnit, placeholder: 'pcs / kg / L ...' },
-              { label: 'Quantity', value: quantity, onChange: setQuantity, placeholder: '1', keyboard: 'decimal-pad' as const },
-              { label: 'Price', value: price, onChange: setPrice, placeholder: '0.00', keyboard: 'decimal-pad' as const },
-              { label: 'Currency', value: currency, onChange: setCurrency, placeholder: 'PHP' },
-              { label: 'Barcode (optional)', value: barcode, onChange: setBarcode, placeholder: '1234567890' },
-            ].map((f) => (
-              <View key={f.label}>
-                <Text style={styles.fieldLabel}>{f.label}</Text>
+              {[
+                { label: 'Name', value: name, onChange: setName, placeholder: 'Item name' },
+                { label: 'Unit', value: unit, onChange: setUnit, placeholder: 'pcs / kg / L ...' },
+                { label: 'Quantity', value: quantity, onChange: setQuantity, placeholder: '1', keyboard: 'decimal-pad' as const },
+                { label: 'Price', value: price, onChange: setPrice, placeholder: '0.00', keyboard: 'decimal-pad' as const },
+                { label: 'Currency', value: currency, onChange: setCurrency, placeholder: 'PHP' },
+              ].map((f) => (
+                <View key={f.label}>
+                  <Text style={styles.fieldLabel}>{f.label}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder={f.placeholder}
                   value={f.value}
                   onChangeText={f.onChange}
                   keyboardType={f.keyboard}
+                  />
+                </View>
+              ))}
+              <Text style={styles.fieldLabel}>Barcode or QR code (optional)</Text>
+              <View style={styles.barcodeRow}>
+                <TextInput
+                  style={[styles.input, styles.barcodeInput]}
+                  placeholder="1234567890"
+                  value={barcode}
+                  onChangeText={setBarcode}
                 />
+                <TouchableOpacity style={styles.scanBtn} onPress={() => setScannerMode('register')}>
+                  <Text style={styles.scanBtnText}>Scan</Text>
+                </TouchableOpacity>
               </View>
-            ))}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
@@ -111,12 +149,38 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
           </View>
         </View>
       </Modal>
+
+      <BarcodeScannerModal
+        visible={scannerMode !== null}
+        title={scannerMode === 'register' ? 'Scan item barcode' : 'Search item'}
+        subtitle={scannerMode === 'register' ? 'Scan a barcode or QR code to fill the item code.' : 'Scan a barcode or QR code to search this tracker.'}
+        onClose={() => setScannerMode(null)}
+        onScanned={(value) => {
+          if (scannerMode === 'register') {
+            setBarcode(value);
+          } else {
+            setSearchQuery(value);
+          }
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  searchBar: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: FontSize.md,
+    color: Colors.textPrimary,
+  },
   list: { padding: Spacing.md, paddingBottom: 100 },
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md,
@@ -150,6 +214,17 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
     padding: Spacing.sm, fontSize: FontSize.md, color: Colors.textPrimary,
   },
+  barcodeRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
+  barcodeInput: { flex: 1 },
+  scanBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanBtnText: { color: '#fff', fontSize: FontSize.sm, fontWeight: '600' },
   modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
   cancelBtn: { flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center' },
   cancelText: { color: Colors.textSecondary, fontWeight: '600' },
