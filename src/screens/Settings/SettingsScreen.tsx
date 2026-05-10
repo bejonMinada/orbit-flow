@@ -65,7 +65,7 @@ export default function SettingsScreen() {
           { label: 'Goal-Based Sinking Funds', phase: 'Phase 3' },
           { label: 'Burn-Rate Forecasting', phase: 'Phase 4' },
           { label: 'Biometric Lock', phase: 'Phase 3' },
-          { label: 'Group Contributions (RBAC)', phase: 'Phase 2' },
+          { label: 'Group Contributions', phase: 'Phase 2' },
         ].map((f) => (
           <View key={f.label} style={styles.row}>
             <Text style={styles.rowLabel}>{f.label}</Text>

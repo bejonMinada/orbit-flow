@@ -8,6 +8,7 @@ function newId(prefix: string): string {
 }
 
 function generateTransactionCode(): string {
+  // Uses UUID v4 entropy; App.tsx initializes react-native-get-random-values for RN compatibility.
   const raw = uuidv4().replace(/-/g, '').toUpperCase();
   return raw.slice(0, 12);
 }
