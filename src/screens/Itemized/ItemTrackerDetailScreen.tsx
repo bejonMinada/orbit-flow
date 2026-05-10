@@ -688,7 +688,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.textPrimary,
   },
-  checklistHeader: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.sm, marginTop: Spacing.xs },
   checklistActions: { flexDirection: 'row', gap: Spacing.xs, justifyContent: 'center', alignItems: 'center' },
   pinnedChecklistSection: {
     position: 'absolute',
