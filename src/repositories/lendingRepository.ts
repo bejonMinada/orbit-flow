@@ -6,17 +6,30 @@ function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function getLendingEntryNote(kind: 'cash_in' | 'cash_out', borrowerName: string, referenceNumber: string): string {
-  const action = kind === 'cash_out' ? 'Loan released to' : 'Loan settled by';
-  return `${action} ${borrowerName}${referenceNumber ? ` (${referenceNumber})` : ''}`;
+function generateTransactionCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 12; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
-function mapLendingRequest(r: {
+function getLendingEntryNote(kind: 'cash_in' | 'cash_out', borrowerName: string, transactionCode: string, referenceNumber: string): string {
+  const action = kind === 'cash_out' ? 'Loan released to' : 'Loan settled by';
+  const ref = referenceNumber ? ` Ref: ${referenceNumber}` : '';
+  return `${action} ${borrowerName} (TXN: ${transactionCode})${ref}`;
+}
+
+type LendingRow = {
   id: string; ledger_id: string; borrower_user_id: string; borrower_name: string;
-  amount: number; currency: string; reference_number: string;
+  amount: number; currency: string; transaction_code: string; reference_number: string;
+  interest_rate: number; due_date: string | null; penalty_rate: number;
   proof_image_uri: string | null; status: string; note: string | null;
   created_at: string; updated_at: string;
-}): LendingRequest {
+};
+
+function mapLendingRequest(r: LendingRow): LendingRequest {
   return {
     id: r.id,
     ledgerId: r.ledger_id,
@@ -24,7 +37,11 @@ function mapLendingRequest(r: {
     borrowerName: r.borrower_name,
     amount: r.amount,
     currency: r.currency,
+    transactionCode: r.transaction_code ?? '',
     referenceNumber: r.reference_number,
+    interestRate: r.interest_rate ?? 0,
+    dueDate: r.due_date ?? undefined,
+    penaltyRate: r.penalty_rate ?? 0,
     proofImageUri: r.proof_image_uri ?? undefined,
     status: r.status as LendingStatus,
     note: r.note ?? undefined,
@@ -35,13 +52,9 @@ function mapLendingRequest(r: {
 
 async function getLendingRequestById(id: string): Promise<LendingRequest | null> {
   const db = getDb();
-  const row = await db.getFirstAsync<{
-    id: string; ledger_id: string; borrower_user_id: string; borrower_name: string;
-    amount: number; currency: string; reference_number: string;
-    proof_image_uri: string | null; status: string; note: string | null;
-    created_at: string; updated_at: string;
-  }>('SELECT * FROM lending_requests WHERE id = ? LIMIT 1', [id]);
-
+  const row = await db.getFirstAsync<LendingRow>(
+    'SELECT * FROM lending_requests WHERE id = ? LIMIT 1', [id]
+  );
   return row ? mapLendingRequest(row) : null;
 }
 
@@ -66,6 +79,7 @@ async function insertLedgerEntry(
   amount: number,
   currency: string,
   borrowerName: string,
+  transactionCode: string,
   referenceNumber: string,
   occurredAt: string
 ): Promise<void> {
@@ -78,7 +92,7 @@ async function insertLedgerEntry(
       amount,
       currency,
       'cat_lending',
-      getLendingEntryNote(kind, borrowerName, referenceNumber),
+      getLendingEntryNote(kind, borrowerName, transactionCode, referenceNumber),
       occurredAt,
       'local',
       occurredAt,
@@ -95,13 +109,9 @@ async function ensureLendableBalance(ledgerId: string, amount: number, currency:
 
 export async function getLendingRequests(): Promise<LendingRequest[]> {
   const db = getDb();
-  const rows = await db.getAllAsync<{
-    id: string; ledger_id: string; borrower_user_id: string; borrower_name: string;
-    amount: number; currency: string; reference_number: string;
-    proof_image_uri: string | null; status: string; note: string | null;
-    created_at: string; updated_at: string;
-  }>('SELECT * FROM lending_requests ORDER BY created_at DESC');
-
+  const rows = await db.getAllAsync<LendingRow>(
+    'SELECT * FROM lending_requests ORDER BY created_at DESC'
+  );
   return rows.map(mapLendingRequest);
 }
 
@@ -110,7 +120,9 @@ export async function createLendingRequest(
   borrowerName: string,
   amount: number,
   currency: string,
-  referenceNumber: string,
+  interestRate: number,
+  dueDate: string | undefined,
+  penaltyRate: number,
   proofImageUri?: string,
   note?: string
 ): Promise<LendingRequest> {
@@ -123,23 +135,28 @@ export async function createLendingRequest(
 
   const now = new Date().toISOString();
   const id = newId('lr');
+  const transactionCode = generateTransactionCode();
+
   await db.runAsync(
     `INSERT INTO lending_requests
       (id, ledger_id, borrower_user_id, borrower_name, amount, currency,
-       reference_number, proof_image_uri, status, note, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       transaction_code, reference_number, interest_rate, due_date, penalty_rate,
+       proof_image_uri, status, note, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, ledgerId, 'local', borrowerName, amount, currency,
-     referenceNumber, proofImageUri ?? null, 'pending_admin_approval', note ?? null, now, now]
+     transactionCode, '', interestRate, dueDate ?? null, penaltyRate,
+     proofImageUri ?? null, 'pending_admin_approval', note ?? null, now, now]
   );
   return {
     id, ledgerId, borrowerUserId: 'local', borrowerName,
-    amount, currency, referenceNumber,
+    amount, currency, transactionCode, referenceNumber: '',
+    interestRate, dueDate, penaltyRate,
     proofImageUri, status: 'pending_admin_approval', note,
     createdAt: now, updatedAt: now,
   };
 }
 
-export async function updateLendingStatus(id: string, status: LendingStatus): Promise<void> {
+export async function updateLendingStatus(id: string, status: LendingStatus, referenceNumber?: string): Promise<void> {
   const db = getDb();
   const now = new Date().toISOString();
   const request = await getLendingRequestById(id);
@@ -163,6 +180,7 @@ export async function updateLendingStatus(id: string, status: LendingStatus): Pr
         request.amount,
         request.currency,
         request.borrowerName,
+        request.transactionCode,
         request.referenceNumber,
         now
       );
@@ -179,6 +197,7 @@ export async function updateLendingStatus(id: string, status: LendingStatus): Pr
       throw new Error('Only approved requests can be settled.');
     }
 
+    const ref = referenceNumber?.trim() ?? '';
     await db.withTransactionAsync(async () => {
       await insertLedgerEntry(
         db,
@@ -187,12 +206,13 @@ export async function updateLendingStatus(id: string, status: LendingStatus): Pr
         request.amount,
         request.currency,
         request.borrowerName,
-        request.referenceNumber,
+        request.transactionCode,
+        ref,
         now
       );
       await db.runAsync(
-        'UPDATE lending_requests SET status = ?, updated_at = ? WHERE id = ?',
-        [status, now, id]
+        'UPDATE lending_requests SET status = ?, reference_number = ?, updated_at = ? WHERE id = ?',
+        [status, ref, now, id]
       );
     });
     return;

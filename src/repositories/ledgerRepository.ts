@@ -28,6 +28,13 @@ export async function getLedgers(): Promise<Ledger[]> {
 
 export async function createLedger(name: string, currency: string = 'PHP'): Promise<Ledger> {
   const db = getDb();
+  const existing = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM ledgers WHERE LOWER(name) = LOWER(?)',
+    [name]
+  );
+  if (existing && existing.count > 0) {
+    throw new Error(`A ledger named "${name}" already exists. Please choose a different name.`);
+  }
   const now = new Date().toISOString();
   const id = newId('l');
   await db.runAsync(
@@ -104,4 +111,31 @@ export async function getLedgerBalance(ledgerId: string, currency: string): Prom
     [ledgerId, currency]
   );
   return (inRow?.total ?? 0) - (outRow?.total ?? 0);
+}
+
+export async function getDashboardChartData(currency: string = 'PHP'): Promise<{
+  totalIncome: number;
+  totalExpenses: number;
+  categoryBreakdown: { categoryId: string; total: number }[];
+}> {
+  const db = getDb();
+  const [incomeRow, expensesRow, categoryRows] = await Promise.all([
+    db.getFirstAsync<{ total: number }>(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_in' AND currency = ?",
+      [currency]
+    ),
+    db.getFirstAsync<{ total: number }>(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_out' AND currency = ?",
+      [currency]
+    ),
+    db.getAllAsync<{ category_id: string; total: number }>(
+      "SELECT category_id, COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_out' AND currency = ? GROUP BY category_id ORDER BY total DESC LIMIT 6",
+      [currency]
+    ),
+  ]);
+  return {
+    totalIncome: incomeRow?.total ?? 0,
+    totalExpenses: expensesRow?.total ?? 0,
+    categoryBreakdown: categoryRows.map((r) => ({ categoryId: r.category_id, total: r.total })),
+  };
 }

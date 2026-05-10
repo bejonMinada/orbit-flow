@@ -25,10 +25,14 @@ export default function ItemizedListScreen({ navigation }: Props) {
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
-    await createItemTracker(newName.trim());
-    setNewName('');
-    setModalVisible(false);
-    load();
+    try {
+      await createItemTracker(newName.trim());
+      setNewName('');
+      setModalVisible(false);
+      load();
+    } catch (error) {
+      Alert.alert('Unable to create tracker', error instanceof Error ? error.message : 'Please try again.');
+    }
   };
 
   const handleDelete = (id: string, name: string) => {

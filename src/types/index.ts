@@ -106,7 +106,11 @@ export interface LendingRequest {
   borrowerName: string;
   amount: number;
   currency: string;
+  transactionCode: string;
   referenceNumber: string;
+  interestRate: number;
+  dueDate?: string;
+  penaltyRate: number;
   proofImageUri?: string;
   status: LendingStatus;
   note?: string;

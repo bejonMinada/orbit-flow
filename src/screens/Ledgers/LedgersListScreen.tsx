@@ -33,11 +33,15 @@ export default function LedgersListScreen({ navigation }: Props) {
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
-    await createLedger(newName.trim(), newCurrency.trim() || 'PHP');
-    setNewName('');
-    setNewCurrency('PHP');
-    setModalVisible(false);
-    load();
+    try {
+      await createLedger(newName.trim(), newCurrency.trim() || 'PHP');
+      setNewName('');
+      setNewCurrency('PHP');
+      setModalVisible(false);
+      load();
+    } catch (error) {
+      Alert.alert('Unable to create ledger', error instanceof Error ? error.message : 'Please try again.');
+    }
   };
 
   const handleDelete = (id: string, name: string) => {
