@@ -88,6 +88,27 @@ export async function initDb(): Promise<void> {
       FOREIGN KEY (tracker_id) REFERENCES item_trackers(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS shopping_sessions (
+      id TEXT PRIMARY KEY,
+      tracker_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (tracker_id) REFERENCES item_trackers(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS shopping_session_items (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      tracked_item_id TEXT,
+      item_name TEXT NOT NULL,
+      unit TEXT NOT NULL DEFAULT 'pcs',
+      planned_quantity REAL NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',
+      alternative_item_name TEXT,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (session_id) REFERENCES shopping_sessions(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS lending_requests (
       id TEXT PRIMARY KEY,
       ledger_id TEXT NOT NULL,

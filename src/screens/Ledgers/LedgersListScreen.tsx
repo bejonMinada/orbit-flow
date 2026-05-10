@@ -6,9 +6,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Spacing, Radius, FontSize } from '../../constants';
 import { getLedgers, createLedger, deleteLedger, getLedgerBalance } from '../../repositories/ledgerRepository';
+import { getWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
 import { Ledger } from '../../types';
 import { LedgersStackParamList } from '../../navigation/LedgersNavigator';
 import { formatAmount } from '../../data/currencies';
+import CurrencyDropdown from '../../components/CurrencyDropdown';
 
 type Props = NativeStackScreenProps<LedgersStackParamList, 'LedgersList'>;
 
@@ -18,10 +20,18 @@ export default function LedgersListScreen({ navigation }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newCurrency, setNewCurrency] = useState('PHP');
+  const [baseCurrency, setBaseCurrency] = useState('PHP');
 
   const load = useCallback(async () => {
-    const ls = await getLedgers();
+    const [ls, workspaceCurrency] = await Promise.all([
+      getLedgers(),
+      getWorkspaceBaseCurrency(),
+    ]);
     setLedgers(ls);
+    setBaseCurrency(workspaceCurrency);
+    if (!modalVisible || !newName.trim()) {
+      setNewCurrency(workspaceCurrency);
+    }
     const bals: Record<string, number> = {};
     for (const l of ls) {
       bals[l.id] = await getLedgerBalance(l.id, l.baseCurrency);
@@ -34,9 +44,9 @@ export default function LedgersListScreen({ navigation }: Props) {
   const handleAdd = async () => {
     if (!newName.trim()) return;
     try {
-      await createLedger(newName.trim(), newCurrency.trim() || 'PHP');
+      await createLedger(newName.trim(), newCurrency.trim() || baseCurrency);
       setNewName('');
-      setNewCurrency('PHP');
+      setNewCurrency(baseCurrency);
       setModalVisible(false);
       load();
     } catch (error) {
@@ -75,7 +85,7 @@ export default function LedgersListScreen({ navigation }: Props) {
         )}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={styles.fab} onPress={() => { setNewCurrency(baseCurrency); setModalVisible(true); }}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
@@ -84,7 +94,7 @@ export default function LedgersListScreen({ navigation }: Props) {
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>New Cash Ledger</Text>
             <TextInput style={styles.input} placeholder="Ledger name" value={newName} onChangeText={setNewName} />
-            <TextInput style={styles.input} placeholder="Currency (e.g. PHP)" value={newCurrency} onChangeText={setNewCurrency} autoCapitalize="characters" />
+            <CurrencyDropdown value={newCurrency} onChange={setNewCurrency} label="Currency" />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>

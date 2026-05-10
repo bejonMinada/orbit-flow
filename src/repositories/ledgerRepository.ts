@@ -1,6 +1,7 @@
 import { getDb } from '../db/database';
 import { Ledger, Entry, EntryKind } from '../types';
 import { normalizeCurrencyCode } from '../data/currencies';
+import { getWorkspaceBaseCurrency } from './workspaceRepository';
 
 function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -27,7 +28,7 @@ export async function getLedgers(): Promise<Ledger[]> {
   }));
 }
 
-export async function createLedger(name: string, currency: string = 'PHP'): Promise<Ledger> {
+export async function createLedger(name: string, currency?: string): Promise<Ledger> {
   const db = getDb();
   const existing = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM ledgers WHERE LOWER(name) = LOWER(?)',
@@ -38,7 +39,8 @@ export async function createLedger(name: string, currency: string = 'PHP'): Prom
   }
   const now = new Date().toISOString();
   const id = newId('l');
-  const safeCurrency = normalizeCurrencyCode(currency);
+  const fallbackCurrency = await getWorkspaceBaseCurrency();
+  const safeCurrency = normalizeCurrencyCode(currency ?? fallbackCurrency, fallbackCurrency);
   await db.runAsync(
     'INSERT INTO ledgers (id, type, name, visibility, base_currency, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [id, 'cash', name, 'private', safeCurrency, now, now]
@@ -164,4 +166,121 @@ export async function updateEntry(
     'UPDATE entries SET kind = ?, amount = ?, category_id = ?, note = ? WHERE id = ?',
     [updates.kind, updates.amount, updates.categoryId, updates.note, id]
   );
+}
+
+export type TrendRange = 'daily' | 'weekly' | 'monthly' | 'annual';
+
+export type NetTrendPoint = {
+  label: string;
+  netAmount: number;
+  periodStart: string;
+};
+
+function toDateOnly(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function startOfWeek(date: Date): Date {
+  const d = toDateOnly(date);
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+
+function startOfMonth(date: Date): Date {
+  const d = toDateOnly(date);
+  d.setDate(1);
+  return d;
+}
+
+function startOfYear(date: Date): Date {
+  const d = toDateOnly(date);
+  d.setMonth(0, 1);
+  return d;
+}
+
+function addPeriod(date: Date, range: TrendRange, step: number): Date {
+  const d = new Date(date);
+  if (range === 'daily') d.setDate(d.getDate() + step);
+  if (range === 'weekly') d.setDate(d.getDate() + (step * 7));
+  if (range === 'monthly') d.setMonth(d.getMonth() + step);
+  if (range === 'annual') d.setFullYear(d.getFullYear() + step);
+  return d;
+}
+
+function normalizePeriodStart(date: Date, range: TrendRange): Date {
+  if (range === 'daily') return toDateOnly(date);
+  if (range === 'weekly') return startOfWeek(date);
+  if (range === 'monthly') return startOfMonth(date);
+  return startOfYear(date);
+}
+
+function formatPeriodLabel(date: Date, range: TrendRange): string {
+  if (range === 'daily') {
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  }
+  if (range === 'weekly') {
+    const end = new Date(date);
+    end.setDate(end.getDate() + 6);
+    return `${date.getMonth() + 1}/${date.getDate()}-${end.getMonth() + 1}/${end.getDate()}`;
+  }
+  if (range === 'monthly') {
+    return date.toLocaleDateString('en-US', { month: 'short' });
+  }
+  return String(date.getFullYear());
+}
+
+function getBucketCount(range: TrendRange): number {
+  if (range === 'daily') return 14;
+  if (range === 'weekly') return 12;
+  if (range === 'monthly') return 12;
+  return 5;
+}
+
+export async function getNetTrendData(
+  currency: string,
+  range: TrendRange
+): Promise<NetTrendPoint[]> {
+  const db = getDb();
+  const safeCurrency = normalizeCurrencyCode(currency);
+  const now = toDateOnly(new Date());
+  const bucketCount = getBucketCount(range);
+  const currentStart = normalizePeriodStart(now, range);
+  const firstBucketStart = addPeriod(currentStart, range, -(bucketCount - 1));
+
+  const rows = await db.getAllAsync<{
+    kind: EntryKind;
+    amount: number;
+    occurred_at: string;
+  }>(
+    'SELECT kind, amount, occurred_at FROM entries WHERE currency = ? AND occurred_at >= ? ORDER BY occurred_at ASC',
+    [safeCurrency, firstBucketStart.toISOString()]
+  );
+
+  const totals = new Map<string, number>();
+  for (let i = 0; i < bucketCount; i += 1) {
+    const bucketStart = addPeriod(firstBucketStart, range, i);
+    totals.set(normalizePeriodStart(bucketStart, range).toISOString().slice(0, 10), 0);
+  }
+
+  for (const row of rows) {
+    const occurredAt = new Date(row.occurred_at);
+    const bucketStart = normalizePeriodStart(occurredAt, range);
+    const key = bucketStart.toISOString().slice(0, 10);
+    if (!totals.has(key)) continue;
+    const signed = row.kind === 'cash_in' ? row.amount : -row.amount;
+    totals.set(key, (totals.get(key) ?? 0) + signed);
+  }
+
+  return Array.from(totals.entries()).map(([periodStart, netAmount]) => {
+    const d = new Date(periodStart);
+    return {
+      periodStart,
+      netAmount,
+      label: formatPeriodLabel(d, range),
+    };
+  });
 }

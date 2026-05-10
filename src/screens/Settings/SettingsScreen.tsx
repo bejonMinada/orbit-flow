@@ -1,19 +1,31 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, FontSize, Labels, SyncConstants } from '../../constants';
 import { CURRENCIES } from '../../data/currencies';
 import { useThemeMode } from '../../theme/ThemeContext';
+import CurrencyDropdown from '../../components/CurrencyDropdown';
+import { getWorkspaceBaseCurrency, updateWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [baseCurrency, setBaseCurrency] = useState('PHP');
-  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const { mode, toggleMode } = useThemeMode();
 
-  const popularCurrencies = ['PHP', 'USD', 'EUR', 'GBP', 'JPY', 'SGD', 'AUD', 'INR', 'MYR', 'IDR'];
+  const load = useCallback(async () => {
+    const currency = await getWorkspaceBaseCurrency();
+    setBaseCurrency(currency);
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const handleBaseCurrencyChange = async (currency: string) => {
+    const next = await updateWorkspaceBaseCurrency(currency);
+    setBaseCurrency(next);
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}>
@@ -21,27 +33,13 @@ export default function SettingsScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Workspace</Text>
-        <TouchableOpacity style={styles.row} onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}>
-          <Text style={styles.rowLabel}>Base Currency</Text>
-          <Text style={styles.rowValue}>{baseCurrency} v</Text>
-        </TouchableOpacity>
+        <View style={styles.dropdownWrap}>
+          <CurrencyDropdown value={baseCurrency} onChange={handleBaseCurrencyChange} label="Base Currency" popularOnly />
+        </View>
         <View style={styles.row}>
           <Text style={styles.rowLabel}>Dark Mode</Text>
           <Switch value={mode === 'dark'} onValueChange={toggleMode} trackColor={{ true: Colors.primary, false: Colors.border }} />
         </View>
-        {showCurrencyPicker && (
-          <View style={styles.currencyGrid}>
-            {popularCurrencies.map((code) => (
-              <TouchableOpacity
-                key={code}
-                style={[styles.currencyChip, baseCurrency === code && styles.currencyChipActive]}
-                onPress={() => { setBaseCurrency(code); setShowCurrencyPicker(false); }}
-              >
-                <Text style={[styles.currencyChipText, baseCurrency === code && { color: '#fff' }]}>{code}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
       </View>
 
       <View style={styles.section}>
@@ -113,8 +111,5 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: FontSize.md, color: Colors.textPrimary },
   rowValue: { fontSize: FontSize.sm, color: Colors.textSecondary },
   rowArrow: { fontSize: FontSize.lg, color: Colors.textMuted },
-  currencyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, padding: Spacing.md },
-  currencyChip: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.full, backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.border },
-  currencyChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  currencyChipText: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '600' },
+  dropdownWrap: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
 });

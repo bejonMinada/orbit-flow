@@ -370,3 +370,41 @@ export async function updateLendingStatus(id: string, status: LendingStatus, ref
     [status, now, id]
   );
 }
+
+type LendingEditableFields = {
+  borrowerName: string;
+  interestRate: number;
+  termMonths: number;
+  dueDate?: string;
+  penaltyRate: number;
+  note?: string;
+  referenceNumber?: string;
+};
+
+export async function updateLendingRequestDetails(
+  id: string,
+  updates: LendingEditableFields
+): Promise<void> {
+  const db = getDb();
+  const request = await getLendingRequestById(id);
+  if (!request) throw new Error('Lending request not found.');
+  const safeTermMonths = validateTermMonths(updates.termMonths);
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `UPDATE lending_requests
+      SET borrower_name = ?, interest_rate = ?, term_months = ?, due_date = ?, penalty_rate = ?,
+          note = ?, reference_number = ?, updated_at = ?
+      WHERE id = ?`,
+    [
+      updates.borrowerName.trim(),
+      updates.interestRate,
+      safeTermMonths,
+      updates.dueDate?.trim() || null,
+      updates.penaltyRate,
+      updates.note?.trim() || null,
+      updates.referenceNumber?.trim() || request.referenceNumber,
+      now,
+      id,
+    ]
+  );
+}

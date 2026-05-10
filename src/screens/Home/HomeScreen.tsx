@@ -6,7 +6,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
-import { getLedgers, getLedgerBalance, getDashboardChartData } from '../../repositories/ledgerRepository';
+import {
+  getLedgers, getLedgerBalance, getDashboardChartData, getNetTrendData, TrendRange,
+} from '../../repositories/ledgerRepository';
 import { getLendingRequests } from '../../repositories/lendingRepository';
 import { getItemTrackers } from '../../repositories/itemRepository';
 import { formatAmount } from '../../data/currencies';
@@ -15,6 +17,7 @@ import { RootTabParamList } from '../../navigation/BottomTabNavigator';
 import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
 import { SYSTEM_CATEGORIES } from '../../data/categories';
 import AscendingNLogo from '../../components/AscendingNLogo';
+import { getWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
 
 const STATUS_LABEL: Record<LendingRequest['status'], string> = {
   pending_admin_approval: 'Pending Admin Approval',
@@ -37,6 +40,11 @@ interface ChartData {
   incomeCategoryBreakdown: { categoryId: string; total: number }[];
   expenseCategoryBreakdown: { categoryId: string; total: number }[];
 }
+
+type TrendPoint = {
+  label: string;
+  netAmount: number;
+};
 
 function IncomeExpenseBar({ income, expenses }: { income: number; expenses: number }) {
   const total = income + expenses;
@@ -118,6 +126,60 @@ function CategoryBars({ breakdown, maxAmount, currency }: { breakdown: { categor
   );
 }
 
+function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: string }) {
+  if (points.length === 0) {
+    return <Text style={chartStyles.emptyText}>No trend data yet</Text>;
+  }
+
+  const values = points.map((point) => point.netAmount);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const chartHeight = 120;
+  const chartWidth = 320;
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={{ width: Math.max(chartWidth, points.length * 38), height: chartHeight + 40 }}>
+        {points.map((point, index) => {
+          const x = points.length === 1 ? 0 : (index / (points.length - 1)) * (Math.max(chartWidth, points.length * 38) - 20);
+          const y = chartHeight - ((point.netAmount - min) / range) * chartHeight;
+          const previous = index > 0 ? points[index - 1] : null;
+          const prevX = index > 0 ? ((index - 1) / (points.length - 1)) * (Math.max(chartWidth, points.length * 38) - 20) : 0;
+          const prevY = previous ? chartHeight - ((previous.netAmount - min) / range) * chartHeight : 0;
+          const dx = x - prevX;
+          const dy = y - prevY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+          return (
+            <View key={`${point.label}_${index}`}>
+              {previous && (
+                <View
+                  style={[
+                    chartStyles.lineSegment,
+                    {
+                      width: distance,
+                      left: ((prevX + x) / 2) + 10 - (distance / 2),
+                      top: ((prevY + y) / 2) + 10 - 1,
+                      transform: [{ rotate: `${angle}deg` }],
+                    },
+                  ]}
+                />
+              )}
+              <View style={[chartStyles.point, { left: x + 6, top: y + 6 }]} />
+              <Text style={[chartStyles.pointLabel, { left: x, top: chartHeight + 16 }]} numberOfLines={1}>
+                {point.label}
+              </Text>
+            </View>
+          );
+        })}
+        <Text style={chartStyles.trendMin}>{formatAmount(min, currency)}</Text>
+        <Text style={chartStyles.trendMax}>{formatAmount(max, currency)}</Text>
+      </View>
+    </ScrollView>
+  );
+}
+
 export default function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const insets = useSafeAreaInsets();
@@ -134,15 +196,21 @@ export default function HomeScreen() {
     incomeCategoryBreakdown: [],
     expenseCategoryBreakdown: [],
   });
+  const [baseCurrency, setBaseCurrency] = useState('PHP');
+  const [trendRange, setTrendRange] = useState<TrendRange>('monthly');
+  const [trendPoints, setTrendPoints] = useState<TrendPoint[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [ls, lrs, trackers, chart] = await Promise.all([
+      const currentBaseCurrency = await getWorkspaceBaseCurrency();
+      setBaseCurrency(currentBaseCurrency);
+      const [ls, lrs, trackers, chart, trend] = await Promise.all([
         getLedgers(),
         getLendingRequests(),
         getItemTrackers(),
-        getDashboardChartData('PHP'),
+        getDashboardChartData(currentBaseCurrency),
+        getNetTrendData(currentBaseCurrency, trendRange),
       ]);
 
       setLedgers(ls);
@@ -150,6 +218,7 @@ export default function HomeScreen() {
       setTrackerCount(trackers.length);
       setTrackedItemCount(trackers.reduce((count, tracker) => count + tracker.items.length, 0));
       setChartData(chart);
+      setTrendPoints(trend);
 
       const balances = await Promise.all(
         ls.map(async (ledger) => [ledger.id, await getLedgerBalance(ledger.id, ledger.baseCurrency)] as const)
@@ -158,7 +227,7 @@ export default function HomeScreen() {
       setLedgerBalances(nextLedgerBalances);
       setTotalBalance(Object.values(nextLedgerBalances).reduce((sum, balance) => sum + balance, 0));
     } catch (_) {}
-  }, []);
+  }, [trendRange]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -193,7 +262,7 @@ export default function HomeScreen() {
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, styles.primaryCard]}>
           <Text style={styles.balanceLabel}>Net Balance</Text>
-          <Text style={styles.balanceAmount}>{formatAmount(totalBalance, 'PHP')}</Text>
+          <Text style={styles.balanceAmount}>{formatAmount(totalBalance, baseCurrency)}</Text>
           <Text style={styles.ledgerCount}>{ledgers.length} Cash Ledger{ledgers.length !== 1 ? 's' : ''}</Text>
         </View>
         <View style={styles.statCard}>
@@ -224,7 +293,7 @@ export default function HomeScreen() {
                 { color: chartData.netBalance >= 0 ? Colors.cashIn : Colors.cashOut },
               ]}
             >
-              {formatAmount(chartData.netBalance, 'PHP')}
+              {formatAmount(chartData.netBalance, baseCurrency)}
             </Text>
           </View>
         </View>
@@ -235,11 +304,11 @@ export default function HomeScreen() {
         <View style={styles.chartAmounts}>
           <View>
             <Text style={styles.chartAmountLabel}>Total Income</Text>
-            <Text style={[styles.chartAmount, { color: Colors.cashIn }]}>{formatAmount(chartData.totalIncome, 'PHP')}</Text>
+            <Text style={[styles.chartAmount, { color: Colors.cashIn }]}>{formatAmount(chartData.totalIncome, baseCurrency)}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.chartAmountLabel}>Total Expenses</Text>
-            <Text style={[styles.chartAmount, { color: Colors.cashOut }]}>{formatAmount(chartData.totalExpenses, 'PHP')}</Text>
+            <Text style={[styles.chartAmount, { color: Colors.cashOut }]}>{formatAmount(chartData.totalExpenses, baseCurrency)}</Text>
           </View>
         </View>
         <IncomeExpenseBar income={chartData.totalIncome} expenses={chartData.totalExpenses} />
@@ -247,17 +316,33 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Savings Overview</Text>
       <View style={styles.chartCard}>
-        <SavingsBar income={chartData.totalIncome} expenses={chartData.totalExpenses} currency="PHP" />
+        <SavingsBar income={chartData.totalIncome} expenses={chartData.totalExpenses} currency={baseCurrency} />
+      </View>
+
+      <Text style={styles.sectionTitle}>Net Cash Trend</Text>
+      <View style={styles.chartCard}>
+        <View style={styles.rangeRow}>
+          {(['daily', 'weekly', 'monthly', 'annual'] as TrendRange[]).map((range) => (
+            <TouchableOpacity
+              key={range}
+              style={[styles.rangeChip, trendRange === range && styles.rangeChipActive]}
+              onPress={() => setTrendRange(range)}
+            >
+              <Text style={[styles.rangeChipText, trendRange === range && styles.rangeChipTextActive]}>{range}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <NetTrendLine points={trendPoints} currency={baseCurrency} />
       </View>
 
       <Text style={styles.sectionTitle}>Top Savings Categories</Text>
       <View style={styles.chartCard}>
-        <CategoryBars breakdown={chartData.incomeCategoryBreakdown} maxAmount={maxIncomeCategoryAmount} currency="PHP" />
+        <CategoryBars breakdown={chartData.incomeCategoryBreakdown} maxAmount={maxIncomeCategoryAmount} currency={baseCurrency} />
       </View>
 
       <Text style={styles.sectionTitle}>Top Spending Categories</Text>
       <View style={styles.chartCard}>
-        <CategoryBars breakdown={chartData.expenseCategoryBreakdown} maxAmount={maxExpenseCategoryAmount} currency="PHP" />
+        <CategoryBars breakdown={chartData.expenseCategoryBreakdown} maxAmount={maxExpenseCategoryAmount} currency={baseCurrency} />
       </View>
 
       <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -338,6 +423,11 @@ const chartStyles = StyleSheet.create({
   barTrack: { flex: 1, height: 10, backgroundColor: Colors.surfaceAlt, borderRadius: 5, overflow: 'hidden' },
   barFill: { height: 10, borderRadius: 5, minWidth: 4 },
   barAmount: { fontSize: FontSize.xs, color: Colors.textMuted, width: 72, textAlign: 'right' },
+  lineSegment: { position: 'absolute', height: 2, backgroundColor: Colors.primary },
+  point: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
+  pointLabel: { position: 'absolute', width: 44, fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
+  trendMin: { position: 'absolute', left: 0, bottom: 30, fontSize: 10, color: Colors.textMuted },
+  trendMax: { position: 'absolute', left: 0, top: 0, fontSize: 10, color: Colors.textMuted },
 });
 
 const styles = StyleSheet.create({
@@ -396,6 +486,11 @@ const styles = StyleSheet.create({
   chartAmountLabel: { fontSize: FontSize.xs, color: Colors.textSecondary },
   chartAmount: { fontSize: FontSize.lg, fontWeight: 'bold', marginTop: 2 },
   sectionTitle: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm },
+  rangeRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.sm, flexWrap: 'wrap' },
+  rangeChip: { paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surfaceAlt },
+  rangeChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  rangeChipText: { fontSize: FontSize.xs, color: Colors.textSecondary, textTransform: 'capitalize', fontWeight: '600' },
+  rangeChipTextActive: { color: '#fff' },
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
   quickAction: {
     backgroundColor: Colors.surface, borderRadius: Radius.md,

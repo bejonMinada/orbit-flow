@@ -11,6 +11,7 @@ import {
   updateLendingStatus,
   getLendingPayments,
   recordLendingPayment,
+  updateLendingRequestDetails,
 } from '../../repositories/lendingRepository';
 import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepository';
 import { LendingPayment, LendingRequest, Ledger, LendingStatus } from '../../types';
@@ -49,6 +50,14 @@ export default function LendingScreen() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editBorrowerName, setEditBorrowerName] = useState('');
+  const [editInterestRate, setEditInterestRate] = useState('');
+  const [editTermMonths, setEditTermMonths] = useState('1');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editPenaltyRate, setEditPenaltyRate] = useState('');
+  const [editReference, setEditReference] = useState('');
+  const [editNote, setEditNote] = useState('');
 
   const [borrowerName, setBorrowerName] = useState('');
   const [amount, setAmount] = useState('');
@@ -161,10 +170,23 @@ export default function LendingScreen() {
     setDetailModalVisible(true);
   };
 
+  const openEdit = (request: LendingRequest) => {
+    setSelectedDetail((current) => (current?.request.id === request.id ? current : { request, payments: [] }));
+    setEditBorrowerName(request.borrowerName);
+    setEditInterestRate(String(request.interestRate));
+    setEditTermMonths(String(request.termMonths));
+    setEditDueDate(request.dueDate ?? '');
+    setEditPenaltyRate(String(request.penaltyRate));
+    setEditReference(request.referenceNumber ?? '');
+    setEditNote(request.note ?? '');
+    setEditModalVisible(true);
+  };
+
   const handleAction = (request: LendingRequest) => {
     if (request.status === 'pending_admin_approval') {
       Alert.alert('Action', `Manage request from ${request.borrowerName}`, [
         { text: 'Cancel', style: 'cancel' },
+        { text: 'Edit', onPress: () => openEdit(request) },
         { text: 'Approve', onPress: () => runStatusChange(request.id, 'approved') },
         { text: 'Decline', style: 'destructive', onPress: () => runStatusChange(request.id, 'declined') },
       ]);
@@ -226,6 +248,31 @@ export default function LendingScreen() {
       await load();
     } catch (error) {
       Alert.alert('Unable to record payment', error instanceof Error ? error.message : 'Please try again.');
+    }
+  };
+
+  const saveLendingEdit = async () => {
+    if (!selectedDetail) return;
+    try {
+      await updateLendingRequestDetails(selectedDetail.request.id, {
+        borrowerName: editBorrowerName,
+        interestRate: parseFloat(editInterestRate) || 0,
+        termMonths: parseInt(editTermMonths, 10) || 1,
+        dueDate: editDueDate.trim() || undefined,
+        penaltyRate: parseFloat(editPenaltyRate) || 0,
+        referenceNumber: editReference.trim() || undefined,
+        note: editNote.trim() || undefined,
+      });
+      setEditModalVisible(false);
+      const latestRequests = await getLendingRequests();
+      const updatedRequest = latestRequests.find((r) => r.id === selectedDetail.request.id);
+      if (updatedRequest) {
+        const updatedPayments = await getLendingPayments(updatedRequest.id);
+        setSelectedDetail({ request: updatedRequest, payments: updatedPayments });
+      }
+      await load();
+    } catch (error) {
+      Alert.alert('Unable to update request', error instanceof Error ? error.message : 'Please try again.');
     }
   };
 
@@ -388,6 +435,9 @@ export default function LendingScreen() {
                     <Text style={styles.createText}>Add Payment</Text>
                   </TouchableOpacity>
                 ) : null}
+                <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(selectedDetail.request)}>
+                  <Text style={styles.editBtnText}>Edit Details</Text>
+                </TouchableOpacity>
               </>
             )}
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setDetailModalVisible(false)}>
@@ -413,6 +463,36 @@ export default function LendingScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={submitPayment}>
                 <Text style={styles.createText}>Save Payment</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={editModalVisible} transparent animationType="fade" onRequestClose={() => setEditModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.settleBox}>
+            <Text style={styles.modalTitle}>Edit Settlement Item</Text>
+            <Text style={styles.fieldLabel}>Borrower Name</Text>
+            <TextInput style={styles.input} value={editBorrowerName} onChangeText={setEditBorrowerName} />
+            <Text style={styles.fieldLabel}>Monthly Interest Rate (%)</Text>
+            <TextInput style={styles.input} value={editInterestRate} onChangeText={setEditInterestRate} keyboardType="decimal-pad" />
+            <Text style={styles.fieldLabel}>Term (months)</Text>
+            <TextInput style={styles.input} value={editTermMonths} onChangeText={setEditTermMonths} keyboardType="number-pad" />
+            <Text style={styles.fieldLabel}>Due Date (YYYY-MM-DD)</Text>
+            <TextInput style={styles.input} value={editDueDate} onChangeText={setEditDueDate} />
+            <Text style={styles.fieldLabel}>Penalty Rate (% per day)</Text>
+            <TextInput style={styles.input} value={editPenaltyRate} onChangeText={setEditPenaltyRate} keyboardType="decimal-pad" />
+            <Text style={styles.fieldLabel}>Reference Number</Text>
+            <TextInput style={styles.input} value={editReference} onChangeText={setEditReference} />
+            <Text style={styles.fieldLabel}>Note</Text>
+            <TextInput style={styles.input} value={editNote} onChangeText={setEditNote} />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.createBtn} onPress={saveLendingEdit}>
+                <Text style={styles.createText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -470,6 +550,8 @@ const styles = StyleSheet.create({
   cancelText: { color: Colors.textSecondary, fontWeight: '600' },
   createBtn: { flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', marginTop: Spacing.md },
   createText: { color: '#fff', fontWeight: '600' },
+  editBtn: { marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center' },
+  editBtnText: { color: Colors.textSecondary, fontWeight: '600' },
   sectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textSecondary, marginTop: Spacing.md, marginBottom: Spacing.xs },
   installmentCard: { backgroundColor: Colors.surfaceAlt, padding: Spacing.sm, borderRadius: Radius.md, marginBottom: Spacing.xs },
   installmentTitle: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textPrimary },

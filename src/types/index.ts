@@ -91,6 +91,27 @@ export interface ItemTracker {
   createdAt: string;
 }
 
+export type ShoppingItemStatus = 'pending' | 'purchased' | 'out_of_stock';
+
+export interface ShoppingSession {
+  id: string;
+  trackerId: string;
+  title: string;
+  createdAt: string;
+}
+
+export interface ShoppingSessionItem {
+  id: string;
+  sessionId: string;
+  trackedItemId?: string;
+  itemName: string;
+  unit: string;
+  plannedQuantity: number;
+  status: ShoppingItemStatus;
+  alternativeItemName?: string;
+  updatedAt: string;
+}
+
 // ─── Credit & Settlement Monitor (Lending) ───────────────────────────────────
 
 export type LendingStatus =
