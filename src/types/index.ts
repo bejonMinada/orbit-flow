@@ -109,13 +109,28 @@ export interface LendingRequest {
   transactionCode: string;
   referenceNumber: string;
   interestRate: number;
+  termMonths: number;
   dueDate?: string;
   penaltyRate: number;
+  approvedAt?: string;
   proofImageUri?: string;
   status: LendingStatus;
   note?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LendingPayment {
+  id: string;
+  lendingRequestId: string;
+  amountPaid: number;
+  appliedPrincipal: number;
+  appliedInterest: number;
+  appliedPenalty: number;
+  cashbackAmount: number;
+  note?: string;
+  paidAt: string;
+  createdAt: string;
 }
 
 // ─── Payment Profiles ────────────────────────────────────────────────────────

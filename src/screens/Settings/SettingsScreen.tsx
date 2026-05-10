@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, FontSize, Labels, SyncConstants } from '../../constants';
 import { CURRENCIES } from '../../data/currencies';
+import { useThemeMode } from '../../theme/ThemeContext';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [baseCurrency, setBaseCurrency] = useState('PHP');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const { mode, toggleMode } = useThemeMode();
 
   const popularCurrencies = ['PHP', 'USD', 'EUR', 'GBP', 'JPY', 'SGD', 'AUD', 'INR', 'MYR', 'IDR'];
 
@@ -21,8 +23,12 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Workspace</Text>
         <TouchableOpacity style={styles.row} onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}>
           <Text style={styles.rowLabel}>Base Currency</Text>
-          <Text style={styles.rowValue}>{baseCurrency} ▾</Text>
+          <Text style={styles.rowValue}>{baseCurrency} v</Text>
         </TouchableOpacity>
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Dark Mode</Text>
+          <Switch value={mode === 'dark'} onValueChange={toggleMode} trackColor={{ true: Colors.primary, false: Colors.border }} />
+        </View>
         {showCurrencyPicker && (
           <View style={styles.currencyGrid}>
             {popularCurrencies.map((code) => (
@@ -42,11 +48,11 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Data & Sync</Text>
         <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Export', `Export to ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
           <Text style={styles.rowLabel}>Export Data</Text>
-          <Text style={styles.rowArrow}>›</Text>
+          <Text style={styles.rowArrow}>{'>'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Import', `Import from ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
           <Text style={styles.rowLabel}>Import Data</Text>
-          <Text style={styles.rowArrow}>›</Text>
+          <Text style={styles.rowArrow}>{'>'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Google Drive', 'Google Drive sync coming in Phase 2.')}>
           <Text style={styles.rowLabel}>Google Drive Sync</Text>

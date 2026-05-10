@@ -1,16 +1,18 @@
 import 'react-native-get-random-values';
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { initDb } from './src/db/database';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import { Colors, FontSize, Labels } from './src/constants';
+import { ThemeProvider, useThemeMode } from './src/theme/ThemeContext';
 
-export default function App() {
+function AppRoot() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { mode } = useThemeMode();
 
   useEffect(() => {
     initDb()
@@ -38,11 +40,19 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
+      <NavigationContainer theme={mode === 'dark' ? NavigationDarkTheme : NavigationDefaultTheme}>
+        <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
         <BottomTabNavigator />
       </NavigationContainer>
     </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppRoot />
+    </ThemeProvider>
   );
 }
 

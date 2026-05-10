@@ -34,7 +34,8 @@ interface ChartData {
   totalIncome: number;
   totalExpenses: number;
   netBalance: number;
-  categoryBreakdown: { categoryId: string; total: number }[];
+  incomeCategoryBreakdown: { categoryId: string; total: number }[];
+  expenseCategoryBreakdown: { categoryId: string; total: number }[];
 }
 
 function IncomeExpenseBar({ income, expenses }: { income: number; expenses: number }) {
@@ -126,7 +127,13 @@ export default function HomeScreen() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [trackerCount, setTrackerCount] = useState(0);
   const [trackedItemCount, setTrackedItemCount] = useState(0);
-  const [chartData, setChartData] = useState<ChartData>({ totalIncome: 0, totalExpenses: 0, netBalance: 0, categoryBreakdown: [] });
+  const [chartData, setChartData] = useState<ChartData>({
+    totalIncome: 0,
+    totalExpenses: 0,
+    netBalance: 0,
+    incomeCategoryBreakdown: [],
+    expenseCategoryBreakdown: [],
+  });
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -158,7 +165,8 @@ export default function HomeScreen() {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
   const lendingMetrics = useMemo(() => getLendingMetrics(lendingRequests), [lendingRequests]);
   const outstandingLabel = useMemo(() => formatLendingOutstanding(lendingRequests), [lendingRequests]);
-  const maxCategoryAmount = chartData.categoryBreakdown.length > 0 ? chartData.categoryBreakdown[0].total : 0;
+  const maxIncomeCategoryAmount = chartData.incomeCategoryBreakdown.length > 0 ? chartData.incomeCategoryBreakdown[0].total : 0;
+  const maxExpenseCategoryAmount = chartData.expenseCategoryBreakdown.length > 0 ? chartData.expenseCategoryBreakdown[0].total : 0;
 
   return (
     <ScrollView
@@ -242,9 +250,14 @@ export default function HomeScreen() {
         <SavingsBar income={chartData.totalIncome} expenses={chartData.totalExpenses} currency="PHP" />
       </View>
 
-      <Text style={styles.sectionTitle}>Top Expense Categories</Text>
+      <Text style={styles.sectionTitle}>Top Savings Categories</Text>
       <View style={styles.chartCard}>
-        <CategoryBars breakdown={chartData.categoryBreakdown} maxAmount={maxCategoryAmount} currency="PHP" />
+        <CategoryBars breakdown={chartData.incomeCategoryBreakdown} maxAmount={maxIncomeCategoryAmount} currency="PHP" />
+      </View>
+
+      <Text style={styles.sectionTitle}>Top Spending Categories</Text>
+      <View style={styles.chartCard}>
+        <CategoryBars breakdown={chartData.expenseCategoryBreakdown} maxAmount={maxExpenseCategoryAmount} currency="PHP" />
       </View>
 
       <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -288,7 +301,7 @@ export default function HomeScreen() {
         <Text style={styles.empty}>No lending requests yet.</Text>
       ) : (
         lendingRequests.slice(0, 4).map((request) => (
-          <View key={request.id} style={styles.lendingCard}>
+          <TouchableOpacity key={request.id} style={styles.lendingCard} activeOpacity={0.86} onPress={() => navigation.navigate('Lending')}>
             <View style={styles.lendingTop}>
               <Text style={styles.lendingName}>{request.borrowerName}</Text>
               <Text style={[styles.lendingStatus, STATUS_STYLE[request.status]]}>
@@ -297,7 +310,7 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.lendingAmount}>{formatAmount(request.amount, request.currency)}</Text>
             <Text style={styles.lendingMeta}>{request.createdAt.split('T')[0]}</Text>
-          </View>
+          </TouchableOpacity>
         ))
       )}
     </ScrollView>
@@ -336,8 +349,10 @@ const styles = StyleSheet.create({
   logoBadge: {
     width: 52,
     height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.primary,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

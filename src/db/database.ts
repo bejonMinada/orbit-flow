@@ -103,6 +103,20 @@ export async function initDb(): Promise<void> {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS lending_payments (
+      id TEXT PRIMARY KEY,
+      lending_request_id TEXT NOT NULL,
+      amount_paid REAL NOT NULL,
+      applied_principal REAL NOT NULL DEFAULT 0,
+      applied_interest REAL NOT NULL DEFAULT 0,
+      applied_penalty REAL NOT NULL DEFAULT 0,
+      cashback_amount REAL NOT NULL DEFAULT 0,
+      note TEXT,
+      paid_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (lending_request_id) REFERENCES lending_requests(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS payment_profiles (
       id TEXT PRIMARY KEY,
       owner_user_id TEXT NOT NULL DEFAULT 'local',
@@ -154,8 +168,10 @@ async function addColumnIfMissing(
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   await addColumnIfMissing(db, 'lending_requests', 'transaction_code', "TEXT NOT NULL DEFAULT ''");
   await addColumnIfMissing(db, 'lending_requests', 'interest_rate', 'REAL NOT NULL DEFAULT 0');
+  await addColumnIfMissing(db, 'lending_requests', 'term_months', 'INTEGER NOT NULL DEFAULT 1');
   await addColumnIfMissing(db, 'lending_requests', 'due_date', 'TEXT');
   await addColumnIfMissing(db, 'lending_requests', 'penalty_rate', 'REAL NOT NULL DEFAULT 0');
+  await addColumnIfMissing(db, 'lending_requests', 'approved_at', 'TEXT');
 
   // Index to speed up category breakdown and income/expense queries
   await db.execAsync(`

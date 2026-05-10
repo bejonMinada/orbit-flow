@@ -121,17 +121,22 @@ export async function getDashboardChartData(currency: string = 'PHP'): Promise<{
   totalIncome: number;
   totalExpenses: number;
   netBalance: number;
-  categoryBreakdown: { categoryId: string; total: number }[];
+  incomeCategoryBreakdown: { categoryId: string; total: number }[];
+  expenseCategoryBreakdown: { categoryId: string; total: number }[];
 }> {
   const db = getDb();
   const safeCurrency = normalizeCurrencyCode(currency);
-  const [incomeRow, expensesRow, categoryRows] = await Promise.all([
+  const [incomeRow, expensesRow, incomeCategoryRows, expenseCategoryRows] = await Promise.all([
     db.getFirstAsync<{ total: number }>(
       "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_in' AND currency = ?",
       [safeCurrency]
     ),
     db.getFirstAsync<{ total: number }>(
       "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_out' AND currency = ?",
+      [safeCurrency]
+    ),
+    db.getAllAsync<{ category_id: string; total: number }>(
+      "SELECT category_id, COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_in' AND currency = ? GROUP BY category_id ORDER BY total DESC LIMIT 6",
       [safeCurrency]
     ),
     db.getAllAsync<{ category_id: string; total: number }>(
@@ -145,7 +150,8 @@ export async function getDashboardChartData(currency: string = 'PHP'): Promise<{
     totalIncome,
     totalExpenses,
     netBalance: totalIncome - totalExpenses,
-    categoryBreakdown: categoryRows.map((r) => ({ categoryId: r.category_id, total: r.total })),
+    incomeCategoryBreakdown: incomeCategoryRows.map((r) => ({ categoryId: r.category_id, total: r.total })),
+    expenseCategoryBreakdown: expenseCategoryRows.map((r) => ({ categoryId: r.category_id, total: r.total })),
   };
 }
 
