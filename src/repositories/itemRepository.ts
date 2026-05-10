@@ -58,7 +58,7 @@ export async function updateItemTrackerName(id: string, name: string): Promise<v
     [trimmedName, id]
   );
   if ((existing?.count ?? 0) > 0) {
-    throw new Error(`A tracker named "${trimmedName}" already exists. Please choose a different name.`);
+    throw new Error(`An inventory named "${trimmedName}" already exists. Please choose a different name.`);
   }
 
   await db.runAsync('UPDATE item_trackers SET name = ? WHERE id = ?', [trimmedName, id]);

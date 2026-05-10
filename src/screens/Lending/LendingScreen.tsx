@@ -55,7 +55,7 @@ export default function LendingScreen() {
   const [paymentNote, setPaymentNote] = useState('');
   const [savingPayment, setSavingPayment] = useState(false);
   const [processingInstallmentMonth, setProcessingInstallmentMonth] = useState<number | null>(null);
-  const installmentLocksRef = useRef<Set<string>>(new Set());
+  const installmentLockSetRef = useRef<Set<string>>(new Set());
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editBorrowerName, setEditBorrowerName] = useState('');
   const [editAmount, setEditAmount] = useState('');
@@ -330,10 +330,10 @@ export default function LendingScreen() {
     if (!selectedDetail || !selectedBreakdown || processingInstallmentMonth !== null) return;
     const requestId = selectedDetail.request.id;
     const lockKey = `${requestId}:${month}`;
-    if (installmentLocksRef.current.has(lockKey)) return;
+    if (installmentLockSetRef.current.has(lockKey)) return;
 
     try {
-      installmentLocksRef.current.add(lockKey);
+      installmentLockSetRef.current.add(lockKey);
       setProcessingInstallmentMonth(month);
       const latestRequests = await getLendingRequests();
       const latestRequest = latestRequests.find((request) => request.id === requestId) ?? selectedDetail.request;
@@ -358,7 +358,7 @@ export default function LendingScreen() {
     } catch (error) {
       Alert.alert('Unable to update installment', error instanceof Error ? error.message : 'Please try again.');
     } finally {
-      installmentLocksRef.current.delete(lockKey);
+      installmentLockSetRef.current.delete(lockKey);
       setProcessingInstallmentMonth(null);
     }
   };

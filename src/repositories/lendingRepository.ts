@@ -313,7 +313,7 @@ export async function recordLendingPayment(
     && penaltiesAfter <= settlementThreshold
     && futureInterestAfter <= settlementThreshold;
   if (settlesLoan && breakdown.cashbackIfPaidInFull > 0 && futureInterestAllocation > settlementThreshold) {
-    cashbackAllocation = Math.min(breakdown.cashbackIfPaidInFull, futureInterestAllocation);
+    cashbackAllocation = breakdown.cashbackIfPaidInFull;
   }
 
   const now = new Date().toISOString();
