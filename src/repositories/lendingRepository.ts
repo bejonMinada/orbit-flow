@@ -381,14 +381,26 @@ export async function updateLendingStatus(id: string, status: LendingStatus, ref
   );
 }
 
+/** @deprecated Use `deleteLendingRequest` instead. Kept for backward compatibility. */
 export async function deleteApprovedLendingRequest(id: string): Promise<void> {
+  return deleteLendingRequest(id);
+}
+
+export async function deleteLendingRequest(id: string): Promise<void> {
   const db = getDb();
   const request = await getLendingRequestById(id);
   if (!request) throw new Error('Lending request not found.');
-  if (request.status !== 'approved') {
-    throw new Error('Only approved lending requests can be deleted.');
+  if (request.status !== 'approved' && request.status !== 'pending_admin_approval') {
+    throw new Error('Only pending or approved lending requests can be deleted.');
   }
 
+  if (request.status === 'pending_admin_approval') {
+    // No ledger cash-out entry was created yet – simply remove the record.
+    await db.runAsync('DELETE FROM lending_requests WHERE id = ?', [id]);
+    return;
+  }
+
+  // Approved: reverse the cash-out ledger entry and remove all payment records.
   await db.withTransactionAsync(async () => {
     const transactionTag = `(TXN: ${request.transactionCode})`;
     const releaseEntries = await db.getAllAsync<{ id: string; note: string | null }>(
@@ -425,8 +437,8 @@ export async function updateLendingRequestDetails(
   const db = getDb();
   const request = await getLendingRequestById(id);
   if (!request) throw new Error('Lending request not found.');
-  if (request.status !== 'approved') {
-    throw new Error('Only approved lending requests can be edited.');
+  if (request.status !== 'approved' && request.status !== 'pending_admin_approval') {
+    throw new Error('Only pending or approved lending requests can be edited.');
   }
   if (!Number.isFinite(updates.amount) || updates.amount <= 0) {
     throw new Error('Please enter a valid loan amount greater than zero.');
