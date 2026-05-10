@@ -1,5 +1,5 @@
 import { getDb } from '../db/database';
-import { formatAmount } from '../data/currencies';
+import { formatAmount, normalizeCurrencyCode } from '../data/currencies';
 import { LendingRequest, LendingStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -129,7 +129,8 @@ export async function createLendingRequest(
     throw new Error('Please enter a valid lending amount greater than zero.');
   }
 
-  await ensureLendableBalance(ledgerId, amount, currency);
+  const safeCurrency = normalizeCurrencyCode(currency);
+  await ensureLendableBalance(ledgerId, amount, safeCurrency);
 
   const now = new Date().toISOString();
   const id = newId('lr');
@@ -141,13 +142,13 @@ export async function createLendingRequest(
        transaction_code, reference_number, interest_rate, due_date, penalty_rate,
        proof_image_uri, status, note, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, ledgerId, 'local', borrowerName, amount, currency,
-     transactionCode, '', interestRate, dueDate ?? null, penaltyRate,
-     proofImageUri ?? null, 'pending_admin_approval', note ?? null, now, now]
+     [id, ledgerId, 'local', borrowerName, amount, safeCurrency,
+      transactionCode, '', interestRate, dueDate ?? null, penaltyRate,
+      proofImageUri ?? null, 'pending_admin_approval', note ?? null, now, now]
   );
   return {
     id, ledgerId, borrowerUserId: 'local', borrowerName,
-    amount, currency, transactionCode, referenceNumber: '',
+    amount, currency: safeCurrency, transactionCode, referenceNumber: '',
     interestRate, dueDate, penaltyRate,
     proofImageUri, status: 'pending_admin_approval', note,
     createdAt: now, updatedAt: now,

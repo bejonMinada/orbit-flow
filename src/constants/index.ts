@@ -1,23 +1,23 @@
 export const Colors = {
-  primary: '#6C63FF',
-  primaryDark: '#4B44CC',
-  secondary: '#FF6B6B',
-  success: '#2ECC71',
-  warning: '#F39C12',
-  danger: '#E74C3C',
-  background: '#F8F9FA',
+  primary: '#12B886',
+  primaryDark: '#0E8F69',
+  secondary: '#2F80ED',
+  success: '#12B886',
+  warning: '#F4B740',
+  danger: '#E25555',
+  background: '#FDFCF8',
   surface: '#FFFFFF',
-  surfaceAlt: '#F1F3F5',
-  border: '#DEE2E6',
-  textPrimary: '#212529',
-  textSecondary: '#6C757D',
-  textMuted: '#ADB5BD',
-  cashIn: '#2ECC71',
-  cashOut: '#E74C3C',
+  surfaceAlt: '#F4F2EC',
+  border: '#E7E2D8',
+  textPrimary: '#1F252F',
+  textSecondary: '#4A5568',
+  textMuted: '#8590A3',
+  cashIn: '#12B886',
+  cashOut: '#E25555',
   pending: '#F39C12',
-  approved: '#2ECC71',
-  declined: '#E74C3C',
-  settled: '#6C757D',
+  approved: '#12B886',
+  declined: '#E25555',
+  settled: '#5E6775',
 };
 
 export const Spacing = {
@@ -48,17 +48,21 @@ export const FontSize = {
 };
 
 export const Labels = {
-  appName: 'OrbitFlow',
+  appName: 'Netto',
   cashLedgers: 'Cash Ledgers',
-  itemizedTrackers: 'Itemized Trackers',
+  itemizedTrackers: 'Itemized Inventories',
   trackedItems: 'Tracked Items',
-  creditMonitor: 'Credit & Settlement Monitor',
+  creditMonitor: 'Settlement Hub',
   borrower: 'Borrower',
-  sharedPools: 'Shared Expense Pools',
+  sharedPools: 'Group Contributions',
   paymentProfiles: 'Payment Profiles',
   cashIn: 'Cash In',
   cashOut: 'Cash Out',
   rbac: 'Role-Based Access',
   sinkingFunds: 'Sinking Funds',
   burnRate: 'Burn-Rate Forecast',
+};
+
+export const SyncConstants = {
+  cloudDataFilename: 'netto_data.json',
 };

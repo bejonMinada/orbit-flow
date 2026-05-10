@@ -5,7 +5,7 @@ let _db: SQLite.SQLiteDatabase | null = null;
 
 export function getDb(): SQLite.SQLiteDatabase {
   if (!_db) {
-    _db = SQLite.openDatabaseSync('orbitflow.db');
+    _db = SQLite.openDatabaseSync('netto.db');
   }
   return _db;
 }
@@ -193,6 +193,6 @@ async function seedDefaultWorkspace(db: SQLite.SQLiteDatabase): Promise<void> {
   const now = new Date().toISOString();
   await db.runAsync(
     'INSERT INTO workspaces (id, name, base_currency, created_at) VALUES (?, ?, ?, ?)',
-    ['ws_default', 'My OrbitFlow', 'PHP', now]
+    ['ws_default', 'My Netto', 'PHP', now]
   );
 }
