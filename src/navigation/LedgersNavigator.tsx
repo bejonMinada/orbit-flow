@@ -4,6 +4,7 @@ import { Colors } from '../constants';
 import LedgersListScreen from '../screens/Ledgers/LedgersListScreen';
 import LedgerDetailScreen from '../screens/Ledgers/LedgerDetailScreen';
 import AddEntryScreen from '../screens/Ledgers/AddEntryScreen';
+import { useThemeMode } from '../theme/ThemeContext';
 
 export type LedgersStackParamList = {
   LedgersList: undefined;
@@ -14,10 +15,12 @@ export type LedgersStackParamList = {
 const Stack = createNativeStackNavigator<LedgersStackParamList>();
 
 export default function LedgersNavigator() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: Colors.primary },
+        headerStyle: { backgroundColor: isDark ? '#1F252F' : Colors.primary },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
       }}

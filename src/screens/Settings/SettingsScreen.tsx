@@ -19,6 +19,11 @@ export default function SettingsScreen() {
   const [resetInput, setResetInput] = useState('');
   const [resetting, setResetting] = useState(false);
   const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkSurfaceAlt = '#2A3240';
+  const darkBorder = '#334155';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
 
   const load = useCallback(async () => {
     const currency = await getWorkspaceBaseCurrency();
@@ -64,45 +69,45 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={[styles.container, isDark && { backgroundColor: '#12161D' }]} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}>
-      <Text style={styles.title}>Settings</Text>
+      <Text style={[styles.title, isDark && { color: darkText }]}>Settings</Text>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Workspace</Text>
+      <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
+        <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>Workspace</Text>
         <View style={styles.dropdownWrap}>
           <CurrencyDropdown value={baseCurrency} onChange={handleBaseCurrencyChange} label="Base Currency" popularOnly />
         </View>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Dark Mode</Text>
+        <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Dark Mode</Text>
           <Switch value={mode === 'dark'} onValueChange={toggleMode} trackColor={{ true: Colors.primary, false: Colors.border }} />
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data & Sync</Text>
-        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Export', `Export to ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
-          <Text style={styles.rowLabel}>Export Data</Text>
-          <Text style={styles.rowArrow}>{'>'}</Text>
+      <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
+        <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>Data & Sync</Text>
+        <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={() => Alert.alert('Export', `Export to ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Export Data</Text>
+          <Text style={[styles.rowArrow, isDark && { color: darkMuted }]}>{'>'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Import', `Import from ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
-          <Text style={styles.rowLabel}>Import Data</Text>
-          <Text style={styles.rowArrow}>{'>'}</Text>
+        <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={() => Alert.alert('Import', `Import from ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Import Data</Text>
+          <Text style={[styles.rowArrow, isDark && { color: darkMuted }]}>{'>'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Google Drive', 'Google Drive sync coming in Phase 2.')}>
-          <Text style={styles.rowLabel}>Google Drive Sync</Text>
-          <Text style={styles.rowValue}>Phase 2</Text>
+        <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={() => Alert.alert('Google Drive', 'Google Drive sync coming in Phase 2.')}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Google Drive Sync</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>Phase 2</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('OneDrive', 'OneDrive sync coming in Phase 2.')}>
-          <Text style={styles.rowLabel}>OneDrive Sync</Text>
-          <Text style={styles.rowValue}>Phase 2</Text>
+        <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={() => Alert.alert('OneDrive', 'OneDrive sync coming in Phase 2.')}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>OneDrive Sync</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>Phase 2</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.row} onPress={askReset}>
+        <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={askReset}>
           <Text style={[styles.rowLabel, { color: Colors.danger }]}>Reset All Data</Text>
           <Text style={[styles.rowValue, { color: Colors.danger }]}>Danger</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Features</Text>
+      <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
+        <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>Features</Text>
         {[
           { label: 'Receipt OCR Autofill', phase: 'Phase 4' },
           { label: 'Goal-Based Sinking Funds', phase: 'Phase 3' },
@@ -110,50 +115,51 @@ export default function SettingsScreen() {
           { label: 'Biometric Lock', phase: 'Phase 3' },
           { label: Labels.sharedPools, phase: 'Phase 2' },
         ].map((f) => (
-          <View key={f.label} style={styles.row}>
-            <Text style={styles.rowLabel}>{f.label}</Text>
-            <Text style={styles.rowValue}>{f.phase}</Text>
+          <View key={f.label} style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
+            <Text style={[styles.rowLabel, isDark && { color: darkText }]}>{f.label}</Text>
+            <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{f.phase}</Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>App Name</Text>
-          <Text style={styles.rowValue}>{Labels.appName}</Text>
+      <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
+        <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>About</Text>
+        <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>App Name</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{Labels.appName}</Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Version</Text>
-          <Text style={styles.rowValue}>1.0.0 (Phase 1 MVP)</Text>
+        <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Version</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>1.0.0 (Phase 1 MVP)</Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Schema Version</Text>
-          <Text style={styles.rowValue}>1.0.0</Text>
+        <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Schema Version</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>1.0.0</Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Currencies</Text>
-          <Text style={styles.rowValue}>{CURRENCIES.length} supported</Text>
+        <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
+          <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Currencies</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{CURRENCIES.length} supported</Text>
         </View>
       </View>
 
       <Modal visible={resetModalVisible} transparent animationType="fade" onRequestClose={() => setResetModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Final confirmation</Text>
-            <Text style={styles.modalText}>
+          <View style={[styles.modalCard, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Final confirmation</Text>
+            <Text style={[styles.modalText, isDark && { color: darkMuted }]}>
               Type <Text style={styles.modalStrong}>RESET ALL</Text> to confirm permanent deletion of all local data.
             </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
               value={resetInput}
               onChangeText={setResetInput}
               autoCapitalize="characters"
               placeholder="RESET ALL"
+              placeholderTextColor={isDark ? darkMuted : undefined}
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => { setResetModalVisible(false); setResetInput(''); }}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: darkSurfaceAlt }]} onPress={() => { setResetModalVisible(false); setResetInput(''); }}>
+                <Text style={[styles.cancelText, isDark && { color: darkMuted }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.resetBtn} onPress={confirmReset} disabled={resetting}>
                 <Text style={styles.resetText}>{resetting ? 'Resetting...' : 'Reset Data'}</Text>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants';
 import HomeScreen from '../screens/Home/HomeScreen';
 import LedgersNavigator from './LedgersNavigator';
@@ -20,13 +21,20 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export default function BottomTabNavigator() {
   const { mode } = useThemeMode();
+  const insets = useSafeAreaInsets();
   const isDark = mode === 'dark';
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: isDark ? '#94A3B8' : Colors.textMuted,
-        tabBarStyle: { backgroundColor: isDark ? '#12161D' : Colors.surface, borderTopColor: isDark ? '#253041' : Colors.border },
+        tabBarStyle: {
+          backgroundColor: isDark ? '#12161D' : Colors.surface,
+          borderTopColor: isDark ? '#253041' : Colors.border,
+          height: 54 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 10),
+          paddingTop: 6,
+        },
         tabBarLabelStyle: { fontWeight: '600' },
         tabBarShowLabel: true,
         tabBarIcon: () => null,

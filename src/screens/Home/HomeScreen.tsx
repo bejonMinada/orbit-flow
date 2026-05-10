@@ -139,20 +139,27 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
   const range = max - min || 1;
   const chartHeight = 120;
   const chartWidth = 320;
+  const graphWidth = Math.max(chartWidth, points.length * 38);
+  const Y_AXIS_OFFSET = 6;
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
-    >
-      <View style={{ width: Math.max(chartWidth, points.length * 38), height: chartHeight + 40 }}>
-        {points.map((point, index) => {
-          const x = points.length === 1 ? 0 : (index / (points.length - 1)) * (Math.max(chartWidth, points.length * 38) - 20);
+    <View style={chartStyles.trendRow}>
+      <View style={chartStyles.fixedYAxis}>
+        <Text style={chartStyles.trendMaxFixed}>{formatAmount(max, currency)}</Text>
+        <Text style={chartStyles.trendMinFixed}>{formatAmount(min, currency)}</Text>
+      </View>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+      >
+        <View style={{ width: graphWidth, height: chartHeight + 40 }}>
+          {points.map((point, index) => {
+            const x = points.length === 1 ? 0 : (index / (points.length - 1)) * (graphWidth - 20);
           const y = chartHeight - ((point.netAmount - min) / range) * chartHeight;
           const previous = index > 0 ? points[index - 1] : null;
-          const prevX = index > 0 ? ((index - 1) / (points.length - 1)) * (Math.max(chartWidth, points.length * 38) - 20) : 0;
+          const prevX = index > 0 ? ((index - 1) / (points.length - 1)) * (graphWidth - 20) : 0;
           const prevY = previous ? chartHeight - ((previous.netAmount - min) / range) * chartHeight : 0;
           const dx = x - prevX;
           const dy = y - prevY;
@@ -160,30 +167,29 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
           const angle = Math.atan2(dy, dx) * (180 / Math.PI);
           return (
             <View key={`${point.label}_${index}`}>
-              {previous && (
-                <View
-                  style={[
-                    chartStyles.lineSegment,
-                    {
-                      width: distance,
-                      left: ((prevX + x) / 2) + 10 - (distance / 2),
-                      top: ((prevY + y) / 2) + 10 - 1,
-                      transform: [{ rotate: `${angle}deg` }],
-                    },
-                  ]}
-                />
-              )}
-              <View style={[chartStyles.point, { left: x + 6, top: y + 6 }]} />
+                {previous && (
+                  <View
+                    style={[
+                      chartStyles.lineSegment,
+                      {
+                        width: distance,
+                        left: ((prevX + x) / 2) + Y_AXIS_OFFSET - (distance / 2),
+                        top: ((prevY + y) / 2) + 10 - 1,
+                        transform: [{ rotate: `${angle}deg` }],
+                      },
+                    ]}
+                  />
+                )}
+              <View style={[chartStyles.point, { left: x + Y_AXIS_OFFSET, top: y + Y_AXIS_OFFSET }]} />
               <Text style={[chartStyles.pointLabel, { left: x, top: chartHeight + 16 }]} numberOfLines={1}>
                 {point.label}
               </Text>
             </View>
           );
-        })}
-        <Text style={chartStyles.trendMin}>{formatAmount(min, currency)}</Text>
-        <Text style={chartStyles.trendMax}>{formatAmount(max, currency)}</Text>
-      </View>
-    </ScrollView>
+          })}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -261,12 +267,12 @@ export default function HomeScreen() {
           <View style={styles.logoBadge}>
             <AscendingNLogo size={26} />
           </View>
-          <View>
+          <View style={styles.brandTextWrap}>
             <Text style={styles.appName}>{Labels.appName}</Text>
+            <Text style={[styles.appDefinition, isDark && { color: darkMuted }]}>Track what is truly saved, spent, and owed with a net-first view.</Text>
           </View>
         </View>
         <Text style={[styles.subtitle, isDark && { color: darkMuted }]}>Dashboard</Text>
-        <Text style={[styles.headerNote, isDark && { color: darkMuted }]}>Track what is truly saved, spent, and owed with a net-first view.</Text>
       </View>
 
       <View style={styles.statsGrid}>
@@ -436,15 +442,17 @@ const chartStyles = StyleSheet.create({
   lineSegment: { position: 'absolute', height: 2, backgroundColor: Colors.primary },
   point: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
   pointLabel: { position: 'absolute', width: 44, fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
-  trendMin: { position: 'absolute', left: 0, bottom: 30, fontSize: 10, color: Colors.textMuted },
-  trendMax: { position: 'absolute', left: 0, top: 0, fontSize: 10, color: Colors.textMuted },
+  trendRow: { flexDirection: 'row', alignItems: 'stretch' },
+  fixedYAxis: { width: 78, justifyContent: 'space-between', paddingVertical: 2, paddingRight: Spacing.xs },
+  trendMinFixed: { fontSize: 10, color: Colors.textMuted },
+  trendMaxFixed: { fontSize: 10, color: Colors.textMuted },
 });
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   header: { marginBottom: Spacing.lg, position: 'relative' },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  brandRow: { flexDirection: 'row', alignItems: 'stretch', gap: Spacing.sm },
   logoBadge: {
     width: 52,
     height: 52,
@@ -455,9 +463,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  brandTextWrap: { height: 52, justifyContent: 'space-between' },
   appName: { fontSize: FontSize.xxxl, fontWeight: 'bold', color: Colors.primary },
-  subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: 2, fontWeight: '600' },
-  headerNote: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: Spacing.sm },
+  appDefinition: { fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 17, maxWidth: 250 },
+  subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: Spacing.lg, fontWeight: '600' },
   statsGrid: { gap: Spacing.sm, marginBottom: Spacing.md },
   statCard: {
     backgroundColor: Colors.surface,

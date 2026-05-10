@@ -67,6 +67,16 @@ function getElapsedCalendarMonths(start: Date, end: Date): number {
   return Math.max(0, months);
 }
 
+function getRuleOf78WeightSum(termMonths: number): number {
+  return (termMonths * (termMonths + 1)) / 2;
+}
+
+function getRuleOf78EarnedWeight(elapsedMonths: number, termMonths: number): number {
+  if (elapsedMonths <= 0) return 0;
+  const clampedElapsed = Math.min(termMonths, elapsedMonths);
+  return (clampedElapsed * (2 * termMonths - clampedElapsed + 1)) / 2;
+}
+
 function getLoanStartDate(request: LendingRequest): Date {
   return new Date(request.approvedAt ?? request.createdAt);
 }
@@ -111,9 +121,12 @@ export function computeLendingBreakdown(
   const firstDue = getFirstDueDate(request);
   const elapsedMonthsRaw = getElapsedCalendarMonths(start, asOf);
   const elapsedMonths = Math.min(termMonths, Math.max(0, elapsedMonthsRaw));
-  const accruedInterestGross = monthlyInterest * elapsedMonths;
-  const accruedInterest = Math.max(0, accruedInterestGross - interestPaid);
-  const futureInterest = Math.max(0, totalInterest - accruedInterestGross);
+  const totalWeight = getRuleOf78WeightSum(termMonths);
+  const earnedWeight = getRuleOf78EarnedWeight(elapsedMonths, termMonths);
+  const earnedInterestGross = totalWeight > 0 ? (totalInterest * earnedWeight) / totalWeight : totalInterest;
+  const interestRemaining = Math.max(0, totalInterest - interestPaid);
+  const accruedInterest = Math.max(0, earnedInterestGross - interestPaid);
+  const futureInterest = Math.max(0, interestRemaining - accruedInterest);
 
   const installments: LendingInstallment[] = [];
   let expectedPaidCumulative = 0;

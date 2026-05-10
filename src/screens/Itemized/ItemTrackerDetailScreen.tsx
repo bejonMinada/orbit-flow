@@ -10,6 +10,8 @@ import {
   getTrackedItems,
   createTrackedItem,
   updateTrackedItemQuantity,
+  updateTrackedItemDetails,
+  deleteTrackedItem,
   getShoppingSessions,
   createShoppingSession,
   getShoppingSessionItems,
@@ -37,9 +39,9 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const { trackerId } = route.params;
   const [items, setItems] = useState<TrackedItem[]>([]);
   const [sessions, setSessions] = useState<ShoppingSession[]>([]);
-  const [sessionItems, setSessionItems] = useState<ShoppingSessionItem[]>([]);
   const [sessionItemsBySession, setSessionItemsBySession] = useState<Record<string, ShoppingSessionItem[]>>({});
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [revealedSessionItemId, setRevealedSessionItemId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('pcs');
@@ -62,6 +64,13 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const [editItemName, setEditItemName] = useState('');
   const [editItemUnit, setEditItemUnit] = useState('pcs');
   const [editItemQuantity, setEditItemQuantity] = useState('1');
+  const [editTrackedVisible, setEditTrackedVisible] = useState(false);
+  const [trackedItemToEdit, setTrackedItemToEdit] = useState<TrackedItem | null>(null);
+  const [trackedEditName, setTrackedEditName] = useState('');
+  const [trackedEditUnit, setTrackedEditUnit] = useState('pcs');
+  const [trackedEditQuantity, setTrackedEditQuantity] = useState('1');
+  const [trackedEditPrice, setTrackedEditPrice] = useState('0');
+  const [trackedEditBarcode, setTrackedEditBarcode] = useState('');
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
   const darkSurface = '#1F252F';
@@ -82,14 +91,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     const allSessionItems = await Promise.all(history.map(async (session) => [session.id, await getShoppingSessionItems(session.id)] as const));
     const bySession = Object.fromEntries(allSessionItems);
     setSessionItemsBySession(bySession);
-    const selected = activeSessionId ?? history[0]?.id ?? null;
-    setActiveSessionId(selected);
-    if (selected) {
-      setSessionItems(bySession[selected] ?? []);
-    } else {
-      setSessionItems([]);
-    }
-  }, [trackerId, activeSessionId]);
+  }, [trackerId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -123,13 +125,8 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       return;
     }
     const session = await createShoppingSession(trackerId, `${route.params.trackerName} • ${new Date().toISOString().slice(0, 10)}`);
-    setActiveSessionId(session.id);
+    setExpandedSessionId(session.id);
     await load();
-  };
-
-  const selectSession = async (sessionId: string) => {
-    setActiveSessionId(sessionId);
-    setSessionItems(sessionItemsBySession[sessionId] ?? await getShoppingSessionItems(sessionId));
   };
 
   const markPurchased = async (sessionItem: ShoppingSessionItem) => {
@@ -226,7 +223,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
         style: 'destructive',
         onPress: async () => {
           await deleteShoppingSession(session.id);
-          if (activeSessionId === session.id) setActiveSessionId(null);
+          if (expandedSessionId === session.id) setExpandedSessionId(null);
           await load();
         },
       },
@@ -244,12 +241,63 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     return formatAmount(latestPriceRecord?.price ?? item.lastPrice, latestPriceRecord?.currency ?? currency);
   };
 
-  const activeSession = sessions.find((session) => session.id === activeSessionId);
-  const purchasedCount = sessionItems.filter((item) => item.status === 'purchased').length;
-  const outOfStockCount = sessionItems.filter((item) => item.status === 'out_of_stock').length;
   const isSessionComplete = (sessionId: string) => {
     const list = sessionItemsBySession[sessionId] ?? [];
     return list.length > 0 && list.every((entry) => entry.status !== 'pending');
+  };
+  const getSessionProgress = (sessionId: string) => {
+    const list = sessionItemsBySession[sessionId] ?? [];
+    return {
+      purchased: list.filter((entry) => entry.status === 'purchased').length,
+      outOfStock: list.filter((entry) => entry.status === 'out_of_stock').length,
+    };
+  };
+
+  const openTrackedItemEditor = (item: TrackedItem) => {
+    setTrackedItemToEdit(item);
+    setTrackedEditName(item.name);
+    setTrackedEditUnit(item.unit);
+    setTrackedEditQuantity(String(item.quantity));
+    setTrackedEditPrice(String(item.lastPrice));
+    setTrackedEditBarcode(item.barcode ?? '');
+    setEditTrackedVisible(true);
+  };
+
+  const saveTrackedItemEdit = async () => {
+    if (!trackedItemToEdit) return;
+    await updateTrackedItemDetails(trackedItemToEdit.id, {
+      name: trackedEditName.trim() || trackedItemToEdit.name,
+      unit: trackedEditUnit.trim() || 'pcs',
+      quantity: Math.max(0, parseFloat(trackedEditQuantity) || 0),
+      price: Math.max(0, parseFloat(trackedEditPrice) || 0),
+      currency,
+      barcode: trackedEditBarcode.trim() || undefined,
+    });
+    setEditTrackedVisible(false);
+    setTrackedItemToEdit(null);
+    await load();
+  };
+
+  const confirmDeleteTrackedItem = (item: TrackedItem) => {
+    Alert.alert('Delete item', `Delete "${item.name}" from inventory?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteTrackedItem(item.id);
+          await load();
+        },
+      },
+    ]);
+  };
+
+  const openTrackedItemActions = (item: TrackedItem) => {
+    Alert.alert(item.name, 'Choose an action', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Edit', onPress: () => openTrackedItemEditor(item) },
+      { text: 'Delete', style: 'destructive', onPress: () => confirmDeleteTrackedItem(item) },
+    ]);
   };
 
   return (
@@ -266,29 +314,33 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
           <Text style={styles.scanBtnText}>Scan</Text>
         </TouchableOpacity>
       </View>
-
-      <View style={styles.checklistHeader}>
-        <Text style={styles.checklistTitle}>Shopping Checklist</Text>
-        <View style={styles.checklistActions}>
-          <TouchableOpacity style={styles.generateBtn} onPress={generateChecklist}>
-            <Text style={styles.generateBtnText}>Generate List</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.savedBtn} onPress={() => setSavedListsVisible(true)}>
-            <Text style={styles.savedBtnText}>Saved Lists</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-        <Text style={[styles.emptyMini, isDark && { color: darkMuted }]}>
-        {sessions.length === 0 ? 'No checklist history yet.' : `${sessions.length} saved list${sessions.length > 1 ? 's' : ''}. Tap “Saved Lists” to view.`}
-      </Text>
+      <Text style={[styles.longPressHint, isDark && { color: darkMuted }]}>Tip: Long-press an inventory item to edit or delete.</Text>
 
       <FlatList
         data={filteredItems}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: Math.max(MIN_LIST_BOTTOM_PADDING, insets.bottom + FAB_CLEARANCE) }]}
+        ListFooterComponent={(
+          <View style={styles.checklistSectionFooter}>
+            <View style={styles.checklistHeader}>
+              <Text style={[styles.checklistTitle, isDark && { color: darkText }]}>Shopping Checklist</Text>
+              <View style={styles.checklistActions}>
+                <TouchableOpacity style={styles.generateBtn} onPress={generateChecklist}>
+                  <Text style={styles.generateBtnText}>Generate List</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.savedBtn} onPress={() => setSavedListsVisible(true)}>
+                  <Text style={styles.savedBtnText}>Saved Lists</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Text style={[styles.emptyMini, isDark && { color: darkMuted }]}>
+              {sessions.length === 0 ? 'No checklist history yet.' : `${sessions.length} saved list${sessions.length > 1 ? 's' : ''}. Tap “Saved Lists” to view.`}
+            </Text>
+          </View>
+        )}
         ListEmptyComponent={<Text style={styles.empty}>{items.length === 0 ? 'No items yet. Tap + to add one.' : 'No items matched your search.'}</Text>}
         renderItem={({ item }) => (
-          <View style={[styles.card, isDark && { backgroundColor: darkSurface }]}>
+          <TouchableOpacity style={[styles.card, isDark && { backgroundColor: darkSurface }]} onLongPress={() => openTrackedItemActions(item)} activeOpacity={0.9}>
             <View style={styles.cardLeft}>
               <Text style={[styles.itemName, isDark && { color: darkText }]}>{item.name}</Text>
               <Text style={[styles.itemPrice, isDark && { color: darkMuted }]}>
@@ -305,7 +357,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
                 <Text style={styles.qtyBtnText}>+</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       />
 
@@ -439,65 +491,108 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
             <ScrollView style={styles.savedListsScroll} contentContainerStyle={[styles.savedListsContent, { paddingBottom: insets.bottom + Spacing.xl }]}>
               {sessions.map((session) => {
                 const completed = isSessionComplete(session.id);
+                const expanded = expandedSessionId === session.id;
+                const sessionList = sessionItemsBySession[session.id] ?? [];
+                const { purchased, outOfStock } = getSessionProgress(session.id);
                 return (
-                  <View key={session.id} style={styles.savedListGroup}>
-                    <TouchableOpacity
-                      style={[
-                        styles.savedListRow,
-                        completed ? styles.savedListRowComplete : styles.savedListRowPending,
-                        activeSessionId === session.id && styles.savedListRowActive,
-                      ]}
-                      onPress={() => selectSession(session.id)}
-                    >
-                      <Text style={styles.savedListRowText}>{session.title}</Text>
-                      <Text style={styles.savedListRowMeta}>{completed ? 'Completed' : 'In progress'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.savedDeleteBtn, isDark && { backgroundColor: '#4B1E1E' }]} onPress={() => confirmDeleteSavedList(session)}>
-                      <Text style={styles.savedDeleteBtnText}>Delete</Text>
-                    </TouchableOpacity>
+                  <View key={session.id}>
+                    <View style={styles.savedListGroup}>
+                      <TouchableOpacity
+                        style={[
+                          styles.savedListRow,
+                          completed ? styles.savedListRowComplete : styles.savedListRowPending,
+                          expanded && styles.savedListRowActive,
+                        ]}
+                        onPress={() => {
+                          setExpandedSessionId((prev) => (prev === session.id ? null : session.id));
+                          setRevealedSessionItemId(null);
+                        }}
+                      >
+                        <Text style={styles.savedListRowText}>{session.title}</Text>
+                        <Text style={styles.savedListRowMeta}>{completed ? 'Completed' : 'In progress'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.savedDeleteBtn, isDark && { backgroundColor: '#4B1E1E' }]} onPress={() => confirmDeleteSavedList(session)}>
+                        <Text style={styles.savedDeleteBtnText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {expanded ? (
+                      <View style={[styles.checklistCard, isDark && { backgroundColor: darkSurface }]}>
+                        <Text style={styles.checklistMeta}>
+                          {session.title} · {purchased} bought · {outOfStock} out of stock
+                        </Text>
+                        {sessionList.length === 0 ? (
+                          <Text style={styles.emptyMini}>No items in this checklist.</Text>
+                        ) : (
+                          sessionList.map((sessionItem) => (
+                            <TouchableOpacity
+                              key={sessionItem.id}
+                              style={[styles.checkItemRow, isDark && { borderTopColor: darkBorder }]}
+                              activeOpacity={0.9}
+                              onLongPress={() => setRevealedSessionItemId((prev) => (prev === sessionItem.id ? null : sessionItem.id))}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.checkItemName, isDark && { color: darkText }]}>{sessionItem.itemName}</Text>
+                                <Text style={[styles.checkItemMeta, isDark && { color: darkMuted }]}>
+                                  {sessionItem.plannedQuantity} {sessionItem.unit} · {sessionItem.status.replace('_', ' ')}
+                                </Text>
+                                {sessionItem.alternativeItemName ? (
+                                  <Text style={styles.altText}>Alternative: {sessionItem.alternativeItemName}</Text>
+                                ) : null}
+                              </View>
+                              <View style={styles.checkActions}>
+                                <TouchableOpacity style={styles.buyBtn} onPress={() => markPurchased(sessionItem)}>
+                                  <Text style={styles.buyBtnText}>Bought</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.outBtn} onPress={() => markOutOfStock(sessionItem)}>
+                                  <Text style={styles.outBtnText}>Out</Text>
+                                </TouchableOpacity>
+                                {revealedSessionItemId === sessionItem.id ? (
+                                  <>
+                                    <TouchableOpacity style={styles.editTinyBtn} onPress={() => openEditSavedItem(sessionItem)}>
+                                      <Text style={styles.editTinyBtnText}>Edit</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.deleteTinyBtn} onPress={() => confirmDeleteSavedItem(sessionItem)}>
+                                      <Text style={styles.deleteTinyBtnText}>Delete</Text>
+                                    </TouchableOpacity>
+                                  </>
+                                ) : null}
+                              </View>
+                            </TouchableOpacity>
+                          ))
+                        )}
+                      </View>
+                    ) : null}
                   </View>
                 );
               })}
-              {activeSession ? (
-                <View style={[styles.checklistCard, isDark && { backgroundColor: darkSurface }]}>
-                  <Text style={styles.checklistMeta}>
-                    {activeSession.title} · {purchasedCount} bought · {outOfStockCount} out of stock
-                  </Text>
-                  {sessionItems.length === 0 ? (
-                    <Text style={styles.emptyMini}>No items in this checklist.</Text>
-                  ) : (
-                    sessionItems.map((sessionItem) => (
-                      <View key={sessionItem.id} style={[styles.checkItemRow, isDark && { borderTopColor: darkBorder }]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.checkItemName, isDark && { color: darkText }]}>{sessionItem.itemName}</Text>
-                          <Text style={[styles.checkItemMeta, isDark && { color: darkMuted }]}>
-                            {sessionItem.plannedQuantity} {sessionItem.unit} · {sessionItem.status.replace('_', ' ')}
-                          </Text>
-                          {sessionItem.alternativeItemName ? (
-                            <Text style={styles.altText}>Alternative: {sessionItem.alternativeItemName}</Text>
-                          ) : null}
-                        </View>
-                        <View style={styles.checkActions}>
-                          <TouchableOpacity style={styles.buyBtn} onPress={() => markPurchased(sessionItem)}>
-                            <Text style={styles.buyBtnText}>Bought</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.outBtn} onPress={() => markOutOfStock(sessionItem)}>
-                            <Text style={styles.outBtnText}>Out</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.editTinyBtn} onPress={() => openEditSavedItem(sessionItem)}>
-                            <Text style={styles.editTinyBtnText}>Edit</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.deleteTinyBtn} onPress={() => confirmDeleteSavedItem(sessionItem)}>
-                            <Text style={styles.deleteTinyBtnText}>Delete</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ))
-                  )}
-                </View>
-              ) : null}
             </ScrollView>
           )}
+        </View>
+      </Modal>
+
+      <Modal visible={editTrackedVisible} transparent animationType="fade" onRequestClose={() => setEditTrackedVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.altModal, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Edit Inventory Item</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Name</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={trackedEditName} onChangeText={setTrackedEditName} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Unit</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={trackedEditUnit} onChangeText={setTrackedEditUnit} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Quantity</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={trackedEditQuantity} onChangeText={setTrackedEditQuantity} keyboardType="decimal-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Price</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={trackedEditPrice} onChangeText={setTrackedEditPrice} keyboardType="decimal-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Barcode</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={trackedEditBarcode} onChangeText={setTrackedEditBarcode} />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditTrackedVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.createBtn} onPress={saveTrackedItemEdit}>
+                <Text style={styles.createText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
 
@@ -551,6 +646,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   searchBar: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+  longPressHint: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 4, marginHorizontal: Spacing.md },
   searchInput: {
     flex: 1,
     borderWidth: 1,
@@ -564,6 +660,7 @@ const styles = StyleSheet.create({
   },
   checklistHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, marginTop: Spacing.sm },
   checklistActions: { flexDirection: 'row', gap: Spacing.xs },
+  checklistSectionFooter: { marginTop: Spacing.md, marginBottom: Spacing.sm },
   checklistTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textPrimary },
   generateBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: 6 },
   generateBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },

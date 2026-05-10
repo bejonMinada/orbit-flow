@@ -3,15 +3,23 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput, Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Spacing, Radius, FontSize } from '../../constants';
 import { getItemTrackers, createItemTracker, deleteItemTracker } from '../../repositories/itemRepository';
 import { ItemTracker } from '../../types';
 import { ItemizedStackParamList } from '../../navigation/ItemizedNavigator';
+import { useThemeMode } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemizedList'>;
 
 export default function ItemizedListScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
   const [trackers, setTrackers] = useState<ItemTracker[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
@@ -43,25 +51,25 @@ export default function ItemizedListScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
       <FlatList
         data={trackers}
         keyExtractor={(t) => t.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No inventories yet. Tap + to create one.</Text>}
+        ListEmptyComponent={<Text style={[styles.empty, isDark && { color: darkMuted }]}>No inventories yet. Tap + to create one.</Text>}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.card}
+            style={[styles.card, isDark && { backgroundColor: darkSurface }]}
             onPress={() => navigation.navigate('ItemTrackerDetail', { trackerId: item.id, trackerName: item.name })}
             onLongPress={() => handleDelete(item.id, item.name)}
           >
-            <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardCount}>{item.items.length} item{item.items.length !== 1 ? 's' : ''}</Text>
+            <Text style={[styles.cardName, isDark && { color: darkText }]}>{item.name}</Text>
+            <Text style={[styles.cardCount, isDark && { color: darkMuted }]}>{item.items.length} item{item.items.length !== 1 ? 's' : ''}</Text>
           </TouchableOpacity>
         )}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]} onPress={() => setModalVisible(true)}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 

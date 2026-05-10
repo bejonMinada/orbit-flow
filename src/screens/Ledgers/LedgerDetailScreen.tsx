@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Spacing, Radius, FontSize } from '../../constants';
 import { getEntries, deleteEntry, getLedgerBalance, updateEntry } from '../../repositories/ledgerRepository';
@@ -10,10 +11,19 @@ import { Entry } from '../../types';
 import { LedgersStackParamList } from '../../navigation/LedgersNavigator';
 import { formatAmount } from '../../data/currencies';
 import { SYSTEM_CATEGORIES } from '../../data/categories';
+import { useThemeMode } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<LedgersStackParamList, 'LedgerDetail'>;
 
 export default function LedgerDetailScreen({ route, navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkSurfaceAlt = '#2A3240';
+  const darkBorder = '#334155';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
   const { ledgerId, currency } = route.params;
   const [entries, setEntries] = useState<Entry[]>([]);
   const [balance, setBalance] = useState(0);
@@ -83,7 +93,7 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
       <View style={[styles.balanceBar, { backgroundColor: balance >= 0 ? Colors.cashIn : Colors.cashOut }]}>
         <Text style={styles.balanceLabel}>Balance</Text>
         <Text style={styles.balanceAmount}>{formatAmount(balance, currency)}</Text>
@@ -93,13 +103,13 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
         data={entries}
         keyExtractor={(e) => e.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No transactions yet.</Text>}
+        ListEmptyComponent={<Text style={[styles.empty, isDark && { color: darkMuted }]}>No transactions yet.</Text>}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.entry} onPress={() => openEditor(item)} onLongPress={() => handleDelete(item.id)}>
+          <TouchableOpacity style={[styles.entry, isDark && { backgroundColor: darkSurface }]} onPress={() => openEditor(item)} onLongPress={() => handleDelete(item.id)}>
             <View style={[styles.kindDot, { backgroundColor: item.kind === 'cash_in' ? Colors.cashIn : Colors.cashOut }]} />
             <View style={styles.entryMid}>
-              <Text style={styles.entryNote}>{item.note || getCategoryName(item.categoryId)}</Text>
-              <Text style={styles.entryDate}>{item.occurredAt.split('T')[0]} · {getCategoryName(item.categoryId)}</Text>
+              <Text style={[styles.entryNote, isDark && { color: darkText }]}>{item.note || getCategoryName(item.categoryId)}</Text>
+              <Text style={[styles.entryDate, isDark && { color: darkMuted }]}>{item.occurredAt.split('T')[0]} · {getCategoryName(item.categoryId)}</Text>
             </View>
             <Text style={[styles.entryAmount, { color: item.kind === 'cash_in' ? Colors.cashIn : Colors.cashOut }]}>
               {item.kind === 'cash_in' ? '+' : '-'}{formatAmount(item.amount, item.currency)}
@@ -108,64 +118,66 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
         )}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddEntry', { ledgerId, currency })}>
+      <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]} onPress={() => navigation.navigate('AddEntry', { ledgerId, currency })}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
       <Modal visible={editVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Edit Transaction</Text>
+          <View style={[styles.modalBox, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Edit Transaction</Text>
             <Text style={styles.warningText}>Warning: edits affect dashboard totals and history accuracy.</Text>
 
-            <Text style={styles.label}>Type</Text>
+            <Text style={[styles.label, isDark && { color: darkMuted }]}>Type</Text>
             <View style={styles.toggle}>
               {(['cash_in', 'cash_out'] as Entry['kind'][]).map((k) => (
                 <TouchableOpacity
                   key={k}
-                  style={[styles.toggleBtn, editKind === k && { backgroundColor: k === 'cash_in' ? Colors.cashIn : Colors.cashOut }]}
+                  style={[styles.toggleBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }, editKind === k && { backgroundColor: k === 'cash_in' ? Colors.cashIn : Colors.cashOut }]}
                   onPress={() => setEditKind(k)}
                 >
-                  <Text style={[styles.toggleText, editKind === k && styles.toggleTextActive]}>
+                  <Text style={[styles.toggleText, isDark && { color: darkMuted }, editKind === k && styles.toggleTextActive]}>
                     {k === 'cash_in' ? 'Cash In' : 'Cash Out'}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.label}>Amount ({currency})</Text>
+            <Text style={[styles.label, isDark && { color: darkMuted }]}>Amount ({currency})</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
               placeholder="0.00"
+              placeholderTextColor={isDark ? darkMuted : undefined}
               keyboardType="decimal-pad"
               value={editAmount}
               onChangeText={setEditAmount}
             />
 
-            <Text style={styles.label}>Note</Text>
+            <Text style={[styles.label, isDark && { color: darkMuted }]}>Note</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
               placeholder="Optional note"
+              placeholderTextColor={isDark ? darkMuted : undefined}
               value={editNote}
               onChangeText={setEditNote}
             />
 
-            <Text style={styles.label}>Category</Text>
+            <Text style={[styles.label, isDark && { color: darkMuted }]}>Category</Text>
             <View style={styles.categories}>
               {SYSTEM_CATEGORIES.map((cat) => (
                 <TouchableOpacity
                   key={cat.id}
-                  style={[styles.catChip, editCategoryId === cat.id && { backgroundColor: cat.color }]}
+                  style={[styles.catChip, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }, editCategoryId === cat.id && { backgroundColor: cat.color }]}
                   onPress={() => setEditCategoryId(cat.id)}
                 >
-                  <Text style={[styles.catName, editCategoryId === cat.id && { color: '#fff' }]}>{cat.name}</Text>
+                  <Text style={[styles.catName, isDark && { color: darkMuted }, editCategoryId === cat.id && { color: '#fff' }]}>{cat.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditVisible(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: darkSurfaceAlt }]} onPress={() => setEditVisible(false)}>
+                <Text style={[styles.cancelText, isDark && { color: darkMuted }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveBtn} onPress={handleUpdate}>
                 <Text style={styles.saveText}>Save</Text>

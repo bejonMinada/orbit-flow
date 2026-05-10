@@ -268,14 +268,17 @@ export async function recordLendingPayment(
   const paymentAmount = amountPaid;
   const principalAllocation = Math.min(paymentAmount, breakdown.principalRemaining);
   const afterPrincipal = paymentAmount - principalAllocation;
-  const interestAllocation = Math.min(afterPrincipal, breakdown.accruedInterest);
-  const afterInterest = afterPrincipal - interestAllocation;
-  const penaltyAllocation = Math.min(afterInterest, breakdown.penalties);
+  const accruedInterestAllocation = Math.min(afterPrincipal, breakdown.accruedInterest);
+  const afterAccruedInterest = afterPrincipal - accruedInterestAllocation;
+  const penaltyAllocation = Math.min(afterAccruedInterest, breakdown.penalties);
+  const afterPenalty = afterAccruedInterest - penaltyAllocation;
+  const futureInterestAllocation = Math.min(afterPenalty, breakdown.futureInterest);
+  const interestAllocation = accruedInterestAllocation + futureInterestAllocation;
 
   let cashbackAllocation = 0;
   const isEarlyFullPrincipalPayment = principalAllocation >= breakdown.principalRemaining && breakdown.cashbackIfPaidInFull > 0;
   if (isEarlyFullPrincipalPayment) {
-    cashbackAllocation = Math.min(breakdown.cashbackIfPaidInFull, breakdown.futureInterest);
+    cashbackAllocation = Math.max(0, breakdown.cashbackIfPaidInFull - futureInterestAllocation);
   }
 
   const now = new Date().toISOString();
