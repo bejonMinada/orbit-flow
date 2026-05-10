@@ -1,3 +1,4 @@
+import { formatAmount } from '../data/currencies';
 import { LendingRequest } from '../types';
 
 export type LendingMetrics = {
@@ -29,4 +30,19 @@ export function getLendingMetrics(requests: LendingRequest[]): LendingMetrics {
     settledCount: 0,
     outstandingAmount: 0,
   });
+}
+
+export function formatLendingOutstanding(requests: LendingRequest[]): string {
+  const totals = requests.reduce<Record<string, number>>((summary, request) => {
+    if (request.status !== 'approved') return summary;
+    summary[request.currency] = (summary[request.currency] ?? 0) + request.amount;
+    return summary;
+  }, {});
+
+  const entries = Object.entries(totals);
+  if (entries.length === 0) return 'No active loans';
+
+  return entries
+    .map(([currency, amount]) => formatAmount(amount, currency))
+    .join(' · ');
 }

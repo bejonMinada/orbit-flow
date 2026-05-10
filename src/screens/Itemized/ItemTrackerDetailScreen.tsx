@@ -78,7 +78,9 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
           <View style={styles.card}>
             <View style={styles.cardLeft}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemPrice}>{formatAmount(item.lastPrice, item.priceHistory[0]?.currency ?? currency)} / {item.unit}</Text>
+              <Text style={styles.itemPrice}>
+                {formatAmount(item.lastPrice, item.priceHistory[item.priceHistory.length - 1]?.currency ?? currency)} / {item.unit}
+              </Text>
               {item.barcode ? <Text style={styles.itemBarcode}>📷 {item.barcode}</Text> : null}
             </View>
             <View style={styles.qtyControl}>

@@ -8,7 +8,7 @@ import { getLendingRequests, createLendingRequest, updateLendingStatus } from '.
 import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepository';
 import { LendingRequest, Ledger, LendingStatus } from '../../types';
 import { formatAmount } from '../../data/currencies';
-import { getLendingMetrics } from '../../utils/lending';
+import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
 
 const STATUS_COLOR: Record<LendingStatus, string> = {
   pending_admin_approval: Colors.warning,
@@ -48,6 +48,7 @@ export default function LendingScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const lendingMetrics = getLendingMetrics(requests);
+  const outstandingLabel = formatLendingOutstanding(requests);
 
   const handleAdd = async () => {
     if (!borrowerName.trim() || !amount.trim() || !selectedLedgerId) {
@@ -97,7 +98,7 @@ export default function LendingScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{Labels.creditMonitor}</Text>
         <Text style={styles.headerSubtitle}>
-          {lendingMetrics.pendingCount} pending · {lendingMetrics.approvedCount} active · {formatAmount(lendingMetrics.outstandingAmount, 'PHP')} outstanding
+          {lendingMetrics.pendingCount} pending · {lendingMetrics.approvedCount} active · {outstandingLabel}
         </Text>
       </View>
 

@@ -1,4 +1,5 @@
 import { getDb } from '../db/database';
+import { formatAmount } from '../data/currencies';
 import { LendingRequest, LendingStatus } from '../types';
 
 function newId(prefix: string): string {
@@ -83,7 +84,7 @@ async function insertLedgerEntry(
 async function ensureLendableBalance(ledgerId: string, amount: number, currency: string): Promise<void> {
   const balance = await getLedgerBalanceForCurrency(ledgerId, currency);
   if (amount > balance) {
-    throw new Error(`The selected ledger only has ${balance.toFixed(2)} ${currency}.`);
+    throw new Error(`The selected ledger only has ${formatAmount(balance, currency)} available.`);
   }
 }
 

@@ -11,7 +11,7 @@ import { getItemTrackers } from '../../repositories/itemRepository';
 import { formatAmount } from '../../data/currencies';
 import { Ledger, LendingRequest } from '../../types';
 import { RootTabParamList } from '../../navigation/BottomTabNavigator';
-import { getLendingMetrics } from '../../utils/lending';
+import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
 
 export default function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
@@ -49,6 +49,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
   const lendingMetrics = useMemo(() => getLendingMetrics(lendingRequests), [lendingRequests]);
+  const outstandingLabel = useMemo(() => formatLendingOutstanding(lendingRequests), [lendingRequests]);
 
   return (
     <ScrollView
@@ -87,7 +88,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Outstanding Lending</Text>
-          <Text style={styles.statValue}>{formatAmount(lendingMetrics.outstandingAmount, 'PHP')}</Text>
+          <Text style={styles.statValueSmall}>{outstandingLabel}</Text>
           <Text style={styles.statHint}>{lendingMetrics.settledCount} settled request{lendingMetrics.settledCount !== 1 ? 's' : ''}</Text>
         </View>
       </View>
@@ -187,6 +188,7 @@ const styles = StyleSheet.create({
   ledgerCount: { color: 'rgba(255,255,255,0.7)', fontSize: FontSize.sm, marginTop: 4 },
   statLabel: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '600' },
   statValue: { color: Colors.textPrimary, fontSize: FontSize.xxl, fontWeight: '700', marginTop: 4 },
+  statValueSmall: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700', marginTop: 6 },
   statHint: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: 4 },
   sectionTitle: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary, marginTop: Spacing.md, marginBottom: Spacing.sm },
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
