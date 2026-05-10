@@ -162,6 +162,12 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_entries_kind_currency_category
       ON entries (kind, currency, category_id);
   `);
+
+  // Expression index to speed up case-insensitive ledger name duplicate checks
+  await db.execAsync(`
+    CREATE INDEX IF NOT EXISTS idx_ledgers_name_lower
+      ON ledgers (LOWER(name));
+  `);
 }
 
 async function seedCategories(db: SQLite.SQLiteDatabase): Promise<void> {

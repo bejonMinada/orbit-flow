@@ -90,6 +90,13 @@ export default function LendingScreen() {
       Alert.alert('Invalid date', 'Please enter the due date in YYYY-MM-DD format.');
       return;
     }
+    if (trimmedDueDate) {
+      const parsed = new Date(trimmedDueDate);
+      if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trimmedDueDate) {
+        Alert.alert('Invalid date', 'The due date is not a valid calendar date. Please check the day and month values.');
+        return;
+      }
+    }
 
     try {
       const ledger = ledgers.find((l) => l.id === selectedLedgerId);
@@ -183,7 +190,7 @@ export default function LendingScreen() {
               )}
               {daysOverdue > 0 && (
                 <Text style={styles.overdueText}>
-                  Overdue by {daysOverdue} day{daysOverdue !== 1 ? 's' : ''} · Penalty: {formatAmount(penaltyAmount, item.currency)} ({item.penaltyRate}%/day)
+                  Overdue by {daysOverdue} day{daysOverdue !== 1 ? 's' : ''}, Penalty: {formatAmount(penaltyAmount, item.currency)} ({item.penaltyRate}%/day)
                 </Text>
               )}
               {item.referenceNumber ? <Text style={styles.cardRef}>Ref: {item.referenceNumber}</Text> : null}

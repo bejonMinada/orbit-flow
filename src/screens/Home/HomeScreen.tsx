@@ -90,7 +90,7 @@ function SavingsBar({ income, expenses, currency }: { income: number; expenses: 
   );
 }
 
-function CategoryBars({ breakdown, maxAmount }: { breakdown: { categoryId: string; total: number }[]; maxAmount: number }) {
+function CategoryBars({ breakdown, maxAmount, currency }: { breakdown: { categoryId: string; total: number }[]; maxAmount: number; currency: string }) {
   if (breakdown.length === 0) {
     return <Text style={chartStyles.emptyText}>No expense data yet</Text>;
   }
@@ -108,7 +108,7 @@ function CategoryBars({ breakdown, maxAmount }: { breakdown: { categoryId: strin
             <View style={chartStyles.barTrack}>
               <View style={[chartStyles.barFill, { width: `${pct}%`, backgroundColor: cat?.color ?? Colors.primary }]} />
             </View>
-            <Text style={chartStyles.barAmount}>{formatAmount(total, 'PHP')}</Text>
+            <Text style={chartStyles.barAmount}>{formatAmount(total, currency)}</Text>
           </View>
         );
       })}
@@ -223,7 +223,7 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Top Expense Categories</Text>
       <View style={styles.chartCard}>
-        <CategoryBars breakdown={chartData.categoryBreakdown} maxAmount={maxCategoryAmount} />
+        <CategoryBars breakdown={chartData.categoryBreakdown} maxAmount={maxCategoryAmount} currency="PHP" />
       </View>
 
       <Text style={styles.sectionTitle}>Quick Actions</Text>

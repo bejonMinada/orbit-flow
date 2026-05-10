@@ -8,7 +8,7 @@ function newId(prefix: string): string {
 }
 
 function generateTransactionCode(): string {
-  // Use UUID v4 (cryptographically random) and extract 12 alphanumeric characters
+  // Use UUID v4 (uses random values) and extract 12 hexadecimal characters as the transaction code
   const raw = uuidv4().replace(/-/g, '').toUpperCase();
   return raw.slice(0, 12);
 }
