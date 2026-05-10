@@ -275,11 +275,13 @@ export async function getNetTrendData(
     totals.set(key, (totals.get(key) ?? 0) + signed);
   }
 
+  let runningTotal = 0;
   return Array.from(totals.entries()).map(([periodStart, netAmount]) => {
+    runningTotal += netAmount;
     const d = new Date(periodStart);
     return {
       periodStart,
-      netAmount,
+      netAmount: runningTotal,
       label: formatPeriodLabel(d, range),
     };
   });

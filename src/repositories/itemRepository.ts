@@ -201,7 +201,7 @@ export async function createShoppingSession(trackerId: string, title?: string): 
       'INSERT INTO shopping_sessions (id, tracker_id, title, created_at) VALUES (?, ?, ?, ?)',
       [id, trackerId, safeTitle, now]
     );
-    const items = await getTrackedItems(trackerId);
+    const items = (await getTrackedItems(trackerId)).filter((item) => item.quantity > 0);
     for (const item of items) {
       await db.runAsync(
         `INSERT INTO shopping_session_items

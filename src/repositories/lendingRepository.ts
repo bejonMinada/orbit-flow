@@ -383,6 +383,7 @@ export async function updateLendingStatus(id: string, status: LendingStatus, ref
 
 type LendingEditableFields = {
   borrowerName: string;
+  amount: number;
   interestRate: number;
   termMonths: number;
   dueDate?: string;
@@ -398,15 +399,31 @@ export async function updateLendingRequestDetails(
   const db = getDb();
   const request = await getLendingRequestById(id);
   if (!request) throw new Error('Lending request not found.');
+  if (!Number.isFinite(updates.amount) || updates.amount <= 0) {
+    throw new Error('Please enter a valid loan amount greater than zero.');
+  }
+  const safeAmount = updates.amount;
   const safeTermMonths = validateTermMonths(updates.termMonths);
+  const payments = await getLendingPayments(id);
+  const paidPrincipal = payments.reduce((sum, payment) => sum + payment.appliedPrincipal, 0);
+  if (safeAmount < paidPrincipal) {
+    throw new Error(`Amount must be at least ${formatAmount(paidPrincipal, request.currency)} (already paid principal).`);
+  }
   const now = new Date().toISOString();
+
+  if (request.status === 'approved' && safeAmount > request.amount) {
+    const delta = safeAmount - request.amount;
+    await ensureLendableBalance(request.ledgerId, delta, request.currency);
+  }
+
   await db.runAsync(
     `UPDATE lending_requests
-      SET borrower_name = ?, interest_rate = ?, term_months = ?, due_date = ?, penalty_rate = ?,
+      SET borrower_name = ?, amount = ?, interest_rate = ?, term_months = ?, due_date = ?, penalty_rate = ?,
           note = ?, reference_number = ?, updated_at = ?
       WHERE id = ?`,
     [
       updates.borrowerName.trim(),
+      safeAmount,
       updates.interestRate,
       safeTermMonths,
       updates.dueDate?.trim() || null,
@@ -417,4 +434,14 @@ export async function updateLendingRequestDetails(
       id,
     ]
   );
+
+  if (request.status === 'approved') {
+    const cashOutEntry = await db.getFirstAsync<{ id: string }>(
+      "SELECT id FROM entries WHERE ledger_id = ? AND kind = 'cash_out' AND category_id = 'cat_lending' AND note LIKE ? ORDER BY occurred_at ASC LIMIT 1",
+      [request.ledgerId, `%TXN: ${request.transactionCode}%`]
+    );
+    if (cashOutEntry) {
+      await db.runAsync('UPDATE entries SET amount = ? WHERE id = ?', [safeAmount, cashOutEntry.id]);
+    }
+  }
 }

@@ -17,6 +17,7 @@ import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepositor
 import { LendingPayment, LendingRequest, Ledger, LendingStatus } from '../../types';
 import { formatAmount } from '../../data/currencies';
 import { computeLendingBreakdown } from '../../utils/lending';
+import { useThemeMode } from '../../theme/ThemeContext';
 
 const STATUS_COLOR: Record<LendingStatus, string> = {
   pending_admin_approval: Colors.warning,
@@ -52,6 +53,7 @@ export default function LendingScreen() {
   const [paymentNote, setPaymentNote] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editBorrowerName, setEditBorrowerName] = useState('');
+  const [editAmount, setEditAmount] = useState('');
   const [editInterestRate, setEditInterestRate] = useState('');
   const [editTermMonths, setEditTermMonths] = useState('1');
   const [editDueDate, setEditDueDate] = useState('');
@@ -67,6 +69,8 @@ export default function LendingScreen() {
   const [penaltyRate, setPenaltyRate] = useState('');
   const [note, setNote] = useState('');
   const [selectedLedgerId, setSelectedLedgerId] = useState('');
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
 
   const load = useCallback(async () => {
     const [rs, ls] = await Promise.all([getLendingRequests(), getLedgers()]);
@@ -173,6 +177,7 @@ export default function LendingScreen() {
   const openEdit = (request: LendingRequest) => {
     setSelectedDetail((current) => (current?.request.id === request.id ? current : { request, payments: [] }));
     setEditBorrowerName(request.borrowerName);
+    setEditAmount(String(request.amount));
     setEditInterestRate(String(request.interestRate));
     setEditTermMonths(String(request.termMonths));
     setEditDueDate(request.dueDate ?? '');
@@ -256,6 +261,7 @@ export default function LendingScreen() {
     try {
       await updateLendingRequestDetails(selectedDetail.request.id, {
         borrowerName: editBorrowerName,
+        amount: parseFloat(editAmount) || 0,
         interestRate: parseFloat(editInterestRate) || 0,
         termMonths: parseInt(editTermMonths, 10) || 1,
         dueDate: editDueDate.trim() || undefined,
@@ -276,8 +282,19 @@ export default function LendingScreen() {
     }
   };
 
+  const confirmSaveLendingEdit = () => {
+    Alert.alert(
+      'Critical update warning',
+      'Editing settlement details changes financial records and dashboard totals. Continue saving these changes?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Save Changes', style: 'destructive', onPress: saveLendingEdit },
+      ]
+    );
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
         <Text style={styles.headerTitle}>{Labels.creditMonitor}</Text>
         <Text style={styles.headerSubtitle}>
@@ -475,6 +492,8 @@ export default function LendingScreen() {
             <Text style={styles.modalTitle}>Edit Settlement Item</Text>
             <Text style={styles.fieldLabel}>Borrower Name</Text>
             <TextInput style={styles.input} value={editBorrowerName} onChangeText={setEditBorrowerName} />
+            <Text style={styles.fieldLabel}>Amount</Text>
+            <TextInput style={styles.input} value={editAmount} onChangeText={setEditAmount} keyboardType="decimal-pad" />
             <Text style={styles.fieldLabel}>Monthly Interest Rate (%)</Text>
             <TextInput style={styles.input} value={editInterestRate} onChangeText={setEditInterestRate} keyboardType="decimal-pad" />
             <Text style={styles.fieldLabel}>Term (months)</Text>
@@ -491,7 +510,7 @@ export default function LendingScreen() {
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModalVisible(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.createBtn} onPress={saveLendingEdit}>
+              <TouchableOpacity style={styles.createBtn} onPress={confirmSaveLendingEdit}>
                 <Text style={styles.createText}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -545,10 +564,10 @@ const styles = StyleSheet.create({
   ledgerChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   ledgerChipText: { fontSize: FontSize.sm, color: Colors.textSecondary },
   availableBalance: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 4 },
-  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md, marginBottom: Spacing.md },
-  cancelBtn: { flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center' },
+  modalActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md, marginBottom: Spacing.md },
+  cancelBtn: { flex: 1, minHeight: 48, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   cancelText: { color: Colors.textSecondary, fontWeight: '600' },
-  createBtn: { flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', marginTop: Spacing.md },
+  createBtn: { flex: 1, minHeight: 48, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   createText: { color: '#fff', fontWeight: '600' },
   editBtn: { marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center' },
   editBtnText: { color: Colors.textSecondary, fontWeight: '600' },

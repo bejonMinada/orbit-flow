@@ -28,6 +28,8 @@ export default function BottomTabNavigator() {
         tabBarInactiveTintColor: isDark ? '#94A3B8' : Colors.textMuted,
         tabBarStyle: { backgroundColor: isDark ? '#12161D' : Colors.surface, borderTopColor: isDark ? '#253041' : Colors.border },
         tabBarLabelStyle: { fontWeight: '600' },
+        tabBarShowLabel: true,
+        tabBarIcon: () => null,
         headerShown: false,
       }}
     >

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch, Modal, TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,11 +9,16 @@ import { CURRENCIES } from '../../data/currencies';
 import { useThemeMode } from '../../theme/ThemeContext';
 import CurrencyDropdown from '../../components/CurrencyDropdown';
 import { getWorkspaceBaseCurrency, updateWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
+import { resetAllData } from '../../db/database';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [baseCurrency, setBaseCurrency] = useState('PHP');
   const { mode, toggleMode } = useThemeMode();
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [resetInput, setResetInput] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const isDark = mode === 'dark';
 
   const load = useCallback(async () => {
     const currency = await getWorkspaceBaseCurrency();
@@ -27,8 +32,38 @@ export default function SettingsScreen() {
     setBaseCurrency(next);
   };
 
+  const askReset = () => {
+    Alert.alert(
+      'Reset all data',
+      'This will permanently delete all ledgers, entries, inventories, shopping lists, settlements, and settings data on this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Continue', style: 'destructive', onPress: () => setResetModalVisible(true) },
+      ]
+    );
+  };
+
+  const confirmReset = async () => {
+    if (resetInput.trim() !== 'RESET ALL') {
+      Alert.alert('Confirmation required', 'Please type RESET ALL exactly to continue.');
+      return;
+    }
+    try {
+      setResetting(true);
+      await resetAllData();
+      await load();
+      setResetInput('');
+      setResetModalVisible(false);
+      Alert.alert('Data reset complete', 'All local data has been reset.');
+    } catch (error) {
+      Alert.alert('Reset failed', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}>
+    <ScrollView style={[styles.container, isDark && { backgroundColor: '#12161D' }]} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}>
       <Text style={styles.title}>Settings</Text>
 
       <View style={styles.section}>
@@ -59,6 +94,10 @@ export default function SettingsScreen() {
         <TouchableOpacity style={styles.row} onPress={() => Alert.alert('OneDrive', 'OneDrive sync coming in Phase 2.')}>
           <Text style={styles.rowLabel}>OneDrive Sync</Text>
           <Text style={styles.rowValue}>Phase 2</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.row} onPress={askReset}>
+          <Text style={[styles.rowLabel, { color: Colors.danger }]}>Reset All Data</Text>
+          <Text style={[styles.rowValue, { color: Colors.danger }]}>Danger</Text>
         </TouchableOpacity>
       </View>
 
@@ -97,6 +136,32 @@ export default function SettingsScreen() {
           <Text style={styles.rowValue}>{CURRENCIES.length} supported</Text>
         </View>
       </View>
+
+      <Modal visible={resetModalVisible} transparent animationType="fade" onRequestClose={() => setResetModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Final confirmation</Text>
+            <Text style={styles.modalText}>
+              Type <Text style={styles.modalStrong}>RESET ALL</Text> to confirm permanent deletion of all local data.
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={resetInput}
+              onChangeText={setResetInput}
+              autoCapitalize="characters"
+              placeholder="RESET ALL"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => { setResetModalVisible(false); setResetInput(''); }}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.resetBtn} onPress={confirmReset} disabled={resetting}>
+                <Text style={styles.resetText}>{resetting ? 'Resetting...' : 'Reset Data'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -112,4 +177,15 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: FontSize.sm, color: Colors.textSecondary },
   rowArrow: { fontSize: FontSize.lg, color: Colors.textMuted },
   dropdownWrap: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: Spacing.md },
+  modalCard: { width: '100%', backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md },
+  modalTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary },
+  modalText: { marginTop: Spacing.xs, fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 20 },
+  modalStrong: { fontWeight: '700', color: Colors.danger },
+  input: { marginTop: Spacing.md, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, color: Colors.textPrimary, fontSize: FontSize.md, backgroundColor: Colors.surfaceAlt },
+  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  cancelBtn: { flex: 1, minHeight: 46, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  cancelText: { color: Colors.textSecondary, fontWeight: '600' },
+  resetBtn: { flex: 1, minHeight: 46, borderRadius: Radius.md, backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center' },
+  resetText: { color: '#fff', fontWeight: '700' },
 });
