@@ -255,7 +255,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.statMiniRow}>
           <View style={[styles.statCard, styles.statCardCompact, isDark && { backgroundColor: darkSurface }]}>
-            <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Items</Text>
+            <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Tracked</Text>
             <Text style={[styles.statValue, isDark && { color: darkText }]}>{trackedItemCount}</Text>
             <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{trackerCount} list{trackerCount !== 1 ? 's' : ''}</Text>
           </View>
@@ -265,7 +265,7 @@ export default function HomeScreen() {
             <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{lendingMetrics.approvedCount} active</Text>
           </View>
           <View style={[styles.statCard, styles.statCardCompact, isDark && { backgroundColor: darkSurface }]}>
-            <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Lended Amount</Text>
+            <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Owed to You</Text>
             <Text style={[styles.statValueSmall, isDark && { color: darkText }]}>{outstandingLabel}</Text>
             <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{lendingMetrics.settledCount} settled</Text>
           </View>

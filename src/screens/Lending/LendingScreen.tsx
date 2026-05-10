@@ -62,7 +62,7 @@ export default function LendingScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editInterestRate, setEditInterestRate] = useState('');
   const [editTermMonths, setEditTermMonths] = useState('1');
-  const [editDueDate, setEditDueDate] = useState('');
+  const [editBorrowedDate, setEditBorrowedDate] = useState('');
   const [editPenaltyRate, setEditPenaltyRate] = useState('');
   const [editReference, setEditReference] = useState('');
   const [editNote, setEditNote] = useState('');
@@ -71,7 +71,7 @@ export default function LendingScreen() {
   const [amount, setAmount] = useState('');
   const [interestRate, setInterestRate] = useState('');
   const [termMonths, setTermMonths] = useState('1');
-  const [dueDate, setDueDate] = useState('');
+  const [borrowedDate, setBorrowedDate] = useState('');
   const [penaltyRate, setPenaltyRate] = useState('');
   const [note, setNote] = useState('');
   const [selectedLedgerId, setSelectedLedgerId] = useState('');
@@ -85,8 +85,22 @@ export default function LendingScreen() {
   const darkText = '#E6E9EE';
   const darkMuted = '#B8C2D1';
 
+  function formatLocalDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function parseLocalDate(dateValue: string): Date {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+    if (!match) return new Date(dateValue);
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
   const addMonthsWithDayClamp = (dateValue: string, months: number): string => {
-    const parsed = new Date(dateValue);
+    const parsed = parseLocalDate(dateValue);
     if (Number.isNaN(parsed.getTime())) return dateValue;
     const day = parsed.getDate();
     const shifted = new Date(parsed);
@@ -94,14 +108,7 @@ export default function LendingScreen() {
     shifted.setMonth(shifted.getMonth() + months);
     const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
     shifted.setDate(Math.min(day, lastDay));
-    return shifted.toISOString().slice(0, 10);
-  };
-
-  const formatLocalDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return formatLocalDate(shifted);
   };
 
   const handleBorrowedDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -109,7 +116,7 @@ export default function LendingScreen() {
       setShowBorrowedDatePicker(false);
     }
     if (event.type === 'set' && selectedDate) {
-      setDueDate(formatLocalDate(selectedDate));
+      setBorrowedDate(formatLocalDate(selectedDate));
     }
   };
 
@@ -118,7 +125,7 @@ export default function LendingScreen() {
       setShowEditBorrowedDatePicker(false);
     }
     if (event.type === 'set' && selectedDate) {
-      setEditDueDate(formatLocalDate(selectedDate));
+      setEditBorrowedDate(formatLocalDate(selectedDate));
     }
   };
 
@@ -169,7 +176,7 @@ export default function LendingScreen() {
     setAmount('');
     setInterestRate('');
     setTermMonths('1');
-    setDueDate('');
+    setBorrowedDate('');
     setPenaltyRate('');
     setNote('');
   };
@@ -183,20 +190,20 @@ export default function LendingScreen() {
     const parsedInterest = parseFloat(interestRate) || 0;
     const parsedTerm = parseInt(termMonths, 10);
     const parsedPenalty = parseFloat(penaltyRate) || 0;
-    const trimmedDueDate = dueDate.trim() || undefined;
+    const trimmedBorrowedDate = borrowedDate.trim() || undefined;
 
     if (!Number.isFinite(parsedTerm) || parsedTerm < 1) {
       Alert.alert('Invalid term', 'Repayment term should be at least 1 month.');
       return;
     }
-    if (trimmedDueDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDueDate)) {
-      Alert.alert('Invalid date', 'Please enter the borrow date in YYYY-MM-DD format.');
+    if (trimmedBorrowedDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedBorrowedDate)) {
+      Alert.alert('Invalid date', 'Please select a valid borrowed date.');
       return;
     }
-    if (trimmedDueDate) {
-      const parsed = new Date(trimmedDueDate);
-      if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trimmedDueDate) {
-        Alert.alert('Invalid date', 'The borrow date is not a valid calendar date. Please check the day and month values.');
+    if (trimmedBorrowedDate) {
+      const parsed = parseLocalDate(trimmedBorrowedDate);
+      if (isNaN(parsed.getTime()) || formatLocalDate(parsed) !== trimmedBorrowedDate) {
+        Alert.alert('Invalid date', 'Please select a valid borrowed date.');
         return;
       }
     }
@@ -210,7 +217,7 @@ export default function LendingScreen() {
         ledger?.baseCurrency ?? 'PHP',
         parsedInterest,
         parsedTerm,
-        trimmedDueDate ? addMonthsWithDayClamp(trimmedDueDate, 1) : undefined,
+        trimmedBorrowedDate ? addMonthsWithDayClamp(trimmedBorrowedDate, 1) : undefined,
         parsedPenalty,
         undefined,
         note.trim() || undefined
@@ -235,7 +242,7 @@ export default function LendingScreen() {
     setEditAmount(String(request.amount));
     setEditInterestRate(String(request.interestRate));
     setEditTermMonths(String(request.termMonths));
-    setEditDueDate(request.dueDate ? addMonthsWithDayClamp(request.dueDate, -1) : '');
+    setEditBorrowedDate(request.dueDate ? addMonthsWithDayClamp(request.dueDate, -1) : '');
     setEditPenaltyRate(String(request.penaltyRate));
     setEditReference(request.referenceNumber ?? '');
     setEditNote(request.note ?? '');
@@ -326,7 +333,7 @@ export default function LendingScreen() {
         amount: parseFloat(editAmount) || 0,
         interestRate: parseFloat(editInterestRate) || 0,
         termMonths: parseInt(editTermMonths, 10) || 1,
-        dueDate: editDueDate.trim() ? addMonthsWithDayClamp(editDueDate.trim(), 1) : undefined,
+        dueDate: editBorrowedDate.trim() ? addMonthsWithDayClamp(editBorrowedDate.trim(), 1) : undefined,
         penaltyRate: parseFloat(editPenaltyRate) || 0,
         referenceNumber: editReference.trim() || undefined,
         note: editNote.trim() || undefined,
@@ -479,14 +486,16 @@ export default function LendingScreen() {
               style={[styles.input, styles.datePickerTrigger, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }]}
               onPress={() => setShowBorrowedDatePicker(true)}
               activeOpacity={0.86}
+              accessibilityLabel="Date borrowed field"
+              accessibilityHint="Tap to open calendar picker"
             >
-              <Text style={[styles.datePickerTriggerText, isDark && { color: darkText }, !dueDate && { color: isDark ? darkMuted : Colors.textMuted }]}>
-                {dueDate || 'Select date'}
+              <Text style={[styles.datePickerTriggerText, isDark && { color: darkText }, !borrowedDate && { color: isDark ? darkMuted : Colors.textMuted }]}>
+                {borrowedDate || 'Select date'}
               </Text>
             </TouchableOpacity>
             {showBorrowedDatePicker ? (
               <DateTimePicker
-                value={dueDate ? new Date(dueDate) : new Date()}
+                value={borrowedDate ? parseLocalDate(borrowedDate) : new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 onChange={handleBorrowedDateChange}
@@ -647,14 +656,16 @@ export default function LendingScreen() {
               style={[styles.input, styles.datePickerTrigger, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }]}
               onPress={() => setShowEditBorrowedDatePicker(true)}
               activeOpacity={0.86}
+              accessibilityLabel="Date borrowed field"
+              accessibilityHint="Tap to open calendar picker"
             >
-              <Text style={[styles.datePickerTriggerText, isDark && { color: darkText }, !editDueDate && { color: isDark ? darkMuted : Colors.textMuted }]}>
-                {editDueDate || 'Select date'}
+              <Text style={[styles.datePickerTriggerText, isDark && { color: darkText }, !editBorrowedDate && { color: isDark ? darkMuted : Colors.textMuted }]}>
+                {editBorrowedDate || 'Select date'}
               </Text>
             </TouchableOpacity>
             {showEditBorrowedDatePicker ? (
               <DateTimePicker
-                value={editDueDate ? new Date(editDueDate) : new Date()}
+                value={editBorrowedDate ? parseLocalDate(editBorrowedDate) : new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
                 onChange={handleEditBorrowedDateChange}
