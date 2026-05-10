@@ -364,7 +364,7 @@ export default function LendingScreen() {
       setSelectedDetail(null);
       await load();
     } catch (error) {
-      Alert.alert('Unable to delete request', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Unable to delete settlement item', error instanceof Error ? error.message : 'Please try again.');
     }
   };
 
@@ -399,9 +399,9 @@ export default function LendingScreen() {
       const threshold = getSettlementThreshold(latestRequest.currency);
       const cumulativeDue = latestBreakdown.installments
         .filter((item) => item.month <= month)
-        .reduce((sum, item) => sum + item.targetAmount, 0);
+        .reduce((sum, item) => sum + item.targetAmount + item.penaltyAmount, 0);
       const remainingRaw = Math.max(0, cumulativeDue - latestBreakdown.totalPaid);
-      const remaining = remainingRaw <= threshold ? 0 : Math.min(remainingRaw, latestBreakdown.outstanding);
+      const remaining = remainingRaw <= threshold ? 0 : remainingRaw;
       if (remaining <= 0) {
         setSelectedDetail({ request: latestRequest, payments: latestPayments });
         return;

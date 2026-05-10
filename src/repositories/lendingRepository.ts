@@ -390,10 +390,18 @@ export async function deleteApprovedLendingRequest(id: string): Promise<void> {
   }
 
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      "DELETE FROM entries WHERE ledger_id = ? AND kind = 'cash_out' AND category_id = 'cat_lending' AND note LIKE ?",
-      [request.ledgerId, `%TXN: ${request.transactionCode}%`]
+    const transactionTag = `(TXN: ${request.transactionCode})`;
+    const releaseEntries = await db.getAllAsync<{ id: string; note: string | null }>(
+      "SELECT id, note FROM entries WHERE ledger_id = ? AND kind = 'cash_out' AND category_id = 'cat_lending'",
+      [request.ledgerId]
     );
+    const matchedEntryIds = releaseEntries
+      .filter((entry) => (entry.note ?? '').includes(transactionTag))
+      .map((entry) => entry.id);
+    if (matchedEntryIds.length > 0) {
+      const placeholders = matchedEntryIds.map(() => '?').join(', ');
+      await db.runAsync(`DELETE FROM entries WHERE id IN (${placeholders})`, matchedEntryIds);
+    }
     await db.runAsync('DELETE FROM lending_payments WHERE lending_request_id = ?', [id]);
     await db.runAsync('DELETE FROM lending_requests WHERE id = ?', [id]);
   });
