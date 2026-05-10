@@ -145,7 +145,8 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredItems = normalizedSearch
-    ? items.filter((item) => `${item.name} ${item.barcode ?? ''}`.toLowerCase().includes(normalizedSearch))
+    ? items.filter((item) => item.name.toLowerCase().includes(normalizedSearch)
+      || item.barcode?.toLowerCase().includes(normalizedSearch))
     : items;
 
   const getItemPriceLabel = (item: TrackedItem) => {

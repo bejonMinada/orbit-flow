@@ -400,14 +400,14 @@ export async function updateLendingRequestDetails(
   const request = await getLendingRequestById(id);
   if (!request) throw new Error('Lending request not found.');
   if (!Number.isFinite(updates.amount) || updates.amount <= 0) {
-    throw new Error('Please enter a valid lending amount greater than zero.');
+    throw new Error('Please enter a valid loan amount greater than zero.');
   }
   const safeAmount = updates.amount;
   const safeTermMonths = validateTermMonths(updates.termMonths);
   const payments = await getLendingPayments(id);
   const paidPrincipal = payments.reduce((sum, payment) => sum + payment.appliedPrincipal, 0);
   if (safeAmount < paidPrincipal) {
-    throw new Error(`Amount cannot be lower than already paid principal (${formatAmount(paidPrincipal, request.currency)}).`);
+    throw new Error(`Amount must be at least ${formatAmount(paidPrincipal, request.currency)} (already paid principal).`);
   }
   const now = new Date().toISOString();
 
