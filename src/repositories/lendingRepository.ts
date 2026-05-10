@@ -1,16 +1,17 @@
 import { getDb } from '../db/database';
 import { formatAmount, normalizeCurrencyCode } from '../data/currencies';
 import { LendingRequest, LendingStatus } from '../types';
-import { v4 as uuidv4 } from 'uuid';
 
 function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
 function generateTransactionCode(): string {
-  // Use UUID v4 (uses random values) and extract 12 hexadecimal characters as the transaction code
-  const raw = uuidv4().replace(/-/g, '').toUpperCase();
-  return raw.slice(0, 12);
+  // React Native compatibility: avoid crypto.getRandomValues dependency.
+  const timePart = Date.now().toString(36).toUpperCase();
+  const randomPart = Math.random().toString(36).slice(2).toUpperCase();
+  const raw = `${timePart}${randomPart}`.replace(/[^A-Z0-9]/g, '');
+  return raw.slice(0, 12).padEnd(12, '0');
 }
 
 function getLendingEntryNote(kind: 'cash_in' | 'cash_out', borrowerName: string, transactionCode: string, referenceNumber: string): string {
