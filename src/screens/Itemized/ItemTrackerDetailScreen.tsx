@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Spacing, Radius, FontSize } from '../../constants';
 import {
@@ -13,6 +14,9 @@ import {
   createShoppingSession,
   getShoppingSessionItems,
   updateShoppingSessionItem,
+  updateShoppingSessionItemDetails,
+  deleteShoppingSessionItem,
+  deleteShoppingSession,
 } from '../../repositories/itemRepository';
 import {
   TrackedItem, ShoppingSession, ShoppingSessionItem,
@@ -25,12 +29,16 @@ import CurrencyDropdown from '../../components/CurrencyDropdown';
 import { useThemeMode } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemTrackerDetail'>;
+const MIN_LIST_BOTTOM_PADDING = 120;
+const FAB_CLEARANCE = 92;
 
 export default function ItemTrackerDetailScreen({ route }: Props) {
+  const insets = useSafeAreaInsets();
   const { trackerId } = route.params;
   const [items, setItems] = useState<TrackedItem[]>([]);
   const [sessions, setSessions] = useState<ShoppingSession[]>([]);
   const [sessionItems, setSessionItems] = useState<ShoppingSessionItem[]>([]);
+  const [sessionItemsBySession, setSessionItemsBySession] = useState<Record<string, ShoppingSessionItem[]>>({});
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [name, setName] = useState('');
@@ -40,13 +48,27 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const [currency, setCurrency] = useState('PHP');
   const [barcode, setBarcode] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [scannerMode, setScannerMode] = useState<'register' | 'search' | null>(null);
+  const [scannerMode, setScannerMode] = useState<'register' | 'search' | 'alternative' | null>(null);
   const [savedListsVisible, setSavedListsVisible] = useState(false);
   const [altPromptVisible, setAltPromptVisible] = useState(false);
   const [pendingOutOfStockItem, setPendingOutOfStockItem] = useState<ShoppingSessionItem | null>(null);
   const [alternativeName, setAlternativeName] = useState('');
+  const [alternativeUnit, setAlternativeUnit] = useState('pcs');
+  const [alternativeQuantity, setAlternativeQuantity] = useState('1');
+  const [alternativePrice, setAlternativePrice] = useState('0');
+  const [alternativeBarcode, setAlternativeBarcode] = useState('');
+  const [editItemVisible, setEditItemVisible] = useState(false);
+  const [editSessionItem, setEditSessionItem] = useState<ShoppingSessionItem | null>(null);
+  const [editItemName, setEditItemName] = useState('');
+  const [editItemUnit, setEditItemUnit] = useState('pcs');
+  const [editItemQuantity, setEditItemQuantity] = useState('1');
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkSurfaceAlt = '#2A3240';
+  const darkBorder = '#334155';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
 
   const load = useCallback(async () => {
     const [its, history, workspaceCurrency] = await Promise.all([
@@ -57,11 +79,13 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     setItems(its);
     setSessions(history);
     setCurrency(workspaceCurrency);
+    const allSessionItems = await Promise.all(history.map(async (session) => [session.id, await getShoppingSessionItems(session.id)] as const));
+    const bySession = Object.fromEntries(allSessionItems);
+    setSessionItemsBySession(bySession);
     const selected = activeSessionId ?? history[0]?.id ?? null;
     setActiveSessionId(selected);
     if (selected) {
-      const checklistItems = await getShoppingSessionItems(selected);
-      setSessionItems(checklistItems);
+      setSessionItems(bySession[selected] ?? []);
     } else {
       setSessionItems([]);
     }
@@ -105,8 +129,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 
   const selectSession = async (sessionId: string) => {
     setActiveSessionId(sessionId);
-    const checklistItems = await getShoppingSessionItems(sessionId);
-    setSessionItems(checklistItems);
+    setSessionItems(sessionItemsBySession[sessionId] ?? await getShoppingSessionItems(sessionId));
   };
 
   const markPurchased = async (sessionItem: ShoppingSessionItem) => {
@@ -117,6 +140,10 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const markOutOfStock = (sessionItem: ShoppingSessionItem) => {
     setPendingOutOfStockItem(sessionItem);
     setAlternativeName('');
+    setAlternativeUnit(sessionItem.unit || 'pcs');
+    setAlternativeQuantity(String(sessionItem.plannedQuantity || 1));
+    setAlternativePrice('0');
+    setAlternativeBarcode('');
     setAltPromptVisible(true);
   };
 
@@ -125,22 +152,85 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     const altName = alternativeName.trim();
     await updateShoppingSessionItem(pendingOutOfStockItem.id, 'out_of_stock', altName || undefined);
     if (altName) {
-      Alert.alert('Add alternative item', 'Register this alternative item to your inventory?', [
-        { text: 'No', style: 'cancel', onPress: () => {} },
-        {
-          text: 'Yes',
-          onPress: async () => {
-            try {
-              await createTrackedItem(trackerId, altName, pendingOutOfStockItem.unit, 0, 0, currency);
+      const parsedAltQty = Math.max(0, parseFloat(alternativeQuantity) || 0);
+      const parsedAltPrice = Math.max(0, parseFloat(alternativePrice) || 0);
+      const duplicate = items.find((item) => item.name.trim().toLowerCase() === altName.toLowerCase());
+      if (duplicate) {
+        Alert.alert('Duplicate item', `"${altName}" already exists in inventory. Add to that existing item?`, [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes',
+            onPress: async () => {
+              await updateTrackedItemQuantity(duplicate.id, duplicate.quantity + parsedAltQty);
               await load();
-            } catch (_) {}
+            },
           },
-        },
-      ]);
+        ]);
+      } else {
+        await createTrackedItem(
+          trackerId,
+          altName,
+          alternativeUnit || pendingOutOfStockItem.unit,
+          parsedAltQty,
+          parsedAltPrice,
+          currency,
+          alternativeBarcode.trim() || undefined
+        );
+      }
     }
     setAltPromptVisible(false);
     setPendingOutOfStockItem(null);
     await load();
+  };
+
+  const openEditSavedItem = (sessionItem: ShoppingSessionItem) => {
+    setEditSessionItem(sessionItem);
+    setEditItemName(sessionItem.itemName);
+    setEditItemUnit(sessionItem.unit || 'pcs');
+    setEditItemQuantity(String(sessionItem.plannedQuantity || 0));
+    setEditItemVisible(true);
+  };
+
+  const saveEditedSavedItem = async () => {
+    if (!editSessionItem) return;
+    await updateShoppingSessionItemDetails(editSessionItem.id, {
+      itemName: editItemName.trim() || editSessionItem.itemName,
+      unit: editItemUnit.trim() || 'pcs',
+      plannedQuantity: Math.max(0, parseFloat(editItemQuantity) || 0),
+      alternativeItemName: editSessionItem.alternativeItemName,
+    });
+    setEditItemVisible(false);
+    setEditSessionItem(null);
+    await load();
+  };
+
+  const confirmDeleteSavedItem = (sessionItem: ShoppingSessionItem) => {
+    Alert.alert('Delete item', `Remove "${sessionItem.itemName}" from this saved list?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteShoppingSessionItem(sessionItem.id);
+          await load();
+        },
+      },
+    ]);
+  };
+
+  const confirmDeleteSavedList = (session: ShoppingSession) => {
+    Alert.alert('Delete saved list', `Delete "${session.title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteShoppingSession(session.id);
+          if (activeSessionId === session.id) setActiveSessionId(null);
+          await load();
+        },
+      },
+    ]);
   };
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -157,13 +247,18 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const activeSession = sessions.find((session) => session.id === activeSessionId);
   const purchasedCount = sessionItems.filter((item) => item.status === 'purchased').length;
   const outOfStockCount = sessionItems.filter((item) => item.status === 'out_of_stock').length;
+  const isSessionComplete = (sessionId: string) => {
+    const list = sessionItemsBySession[sessionId] ?? [];
+    return list.length > 0 && list.every((entry) => entry.status !== 'pending');
+  };
 
   return (
     <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
       <View style={styles.searchBar}>
         <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name or barcode"
+          style={[styles.searchInput, isDark && { backgroundColor: darkSurface, borderColor: darkBorder, color: darkText }]}
+          placeholder="Search by name, barcode, or QR code"
+          placeholderTextColor={isDark ? darkMuted : undefined}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -183,29 +278,29 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
           </TouchableOpacity>
         </View>
       </View>
-      <Text style={styles.emptyMini}>
+        <Text style={[styles.emptyMini, isDark && { color: darkMuted }]}>
         {sessions.length === 0 ? 'No checklist history yet.' : `${sessions.length} saved list${sessions.length > 1 ? 's' : ''}. Tap “Saved Lists” to view.`}
       </Text>
 
       <FlatList
         data={filteredItems}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: Math.max(MIN_LIST_BOTTOM_PADDING, insets.bottom + FAB_CLEARANCE) }]}
         ListEmptyComponent={<Text style={styles.empty}>{items.length === 0 ? 'No items yet. Tap + to add one.' : 'No items matched your search.'}</Text>}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <View style={[styles.card, isDark && { backgroundColor: darkSurface }]}>
             <View style={styles.cardLeft}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemPrice}>
+              <Text style={[styles.itemName, isDark && { color: darkText }]}>{item.name}</Text>
+              <Text style={[styles.itemPrice, isDark && { color: darkMuted }]}>
                 {getItemPriceLabel(item)} / {item.unit}
               </Text>
-              {item.barcode ? <Text style={styles.itemBarcode}>Code: {item.barcode}</Text> : null}
+              {item.barcode ? <Text style={[styles.itemBarcode, isDark && { color: darkMuted }]}>Code: {item.barcode}</Text> : null}
             </View>
             <View style={styles.qtyControl}>
               <TouchableOpacity style={styles.qtyBtn} onPress={() => adjustQty(item, -1)}>
                 <Text style={styles.qtyBtnText}>−</Text>
               </TouchableOpacity>
-              <Text style={styles.qty}>{item.quantity}</Text>
+              <Text style={[styles.qty, isDark && { color: darkText }]}>{item.quantity}</Text>
               <TouchableOpacity style={styles.qtyBtn} onPress={() => adjustQty(item, 1)}>
                 <Text style={styles.qtyBtnText}>+</Text>
               </TouchableOpacity>
@@ -214,14 +309,14 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
         )}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]} onPress={() => setModalVisible(true)}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Add Tracked Item</Text>
+          <View style={[styles.modalBox, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Add Tracked Item</Text>
             {[
               { label: 'Name', value: name, onChange: setName, placeholder: 'Item name' },
               { label: 'Unit', value: unit, onChange: setUnit, placeholder: 'pcs / kg / L ...' },
@@ -229,10 +324,11 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
               { label: 'Price', value: price, onChange: setPrice, placeholder: '0.00', keyboard: 'decimal-pad' as const },
             ].map((field) => (
               <View key={field.label}>
-                <Text style={styles.fieldLabel}>{field.label}</Text>
+                <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>{field.label}</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
                   placeholder={field.placeholder}
+                  placeholderTextColor={isDark ? darkMuted : undefined}
                   value={field.value}
                   onChangeText={field.onChange}
                   keyboardType={field.keyboard}
@@ -240,11 +336,12 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
               </View>
             ))}
             <CurrencyDropdown value={currency} onChange={setCurrency} label="Currency" />
-            <Text style={styles.fieldLabel}>Barcode or QR code (optional)</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Barcode or QR code (optional)</Text>
             <View style={styles.barcodeRow}>
               <TextInput
-                style={[styles.input, styles.barcodeInput]}
+                style={[styles.input, styles.barcodeInput, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
                 placeholder="1234567890"
+                placeholderTextColor={isDark ? darkMuted : undefined}
                 value={barcode}
                 onChangeText={setBarcode}
               />
@@ -266,15 +363,56 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 
       <Modal visible={altPromptVisible} transparent animationType="fade" onRequestClose={() => setAltPromptVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.altModal}>
-            <Text style={styles.modalTitle}>Out of Stock</Text>
-            <Text style={styles.checkItemMeta}>Add an alternative item name (optional):</Text>
+          <View style={[styles.altModal, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Out of Stock</Text>
+            <Text style={[styles.checkItemMeta, isDark && { color: darkMuted }]}>Add an alternative item (optional):</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Name</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
               placeholder="Alternative item"
+              placeholderTextColor={isDark ? darkMuted : undefined}
               value={alternativeName}
               onChangeText={setAlternativeName}
             />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Unit</Text>
+            <TextInput
+              style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
+              placeholder="pcs / kg / L ..."
+              placeholderTextColor={isDark ? darkMuted : undefined}
+              value={alternativeUnit}
+              onChangeText={setAlternativeUnit}
+            />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Quantity</Text>
+            <TextInput
+              style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
+              placeholder="1"
+              placeholderTextColor={isDark ? darkMuted : undefined}
+              value={alternativeQuantity}
+              onChangeText={setAlternativeQuantity}
+              keyboardType="decimal-pad"
+            />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Price</Text>
+            <TextInput
+              style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
+              placeholder="0.00"
+              placeholderTextColor={isDark ? darkMuted : undefined}
+              value={alternativePrice}
+              onChangeText={setAlternativePrice}
+              keyboardType="decimal-pad"
+            />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Barcode or QR code (optional)</Text>
+            <View style={styles.barcodeRow}>
+              <TextInput
+                style={[styles.input, styles.barcodeInput, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
+                placeholder="1234567890"
+                placeholderTextColor={isDark ? darkMuted : undefined}
+                value={alternativeBarcode}
+                onChangeText={setAlternativeBarcode}
+              />
+              <TouchableOpacity style={styles.scanBtn} onPress={() => setScannerMode('alternative')}>
+                <Text style={styles.scanBtnText}>Scan</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setAltPromptVisible(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
@@ -287,72 +425,120 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
         </View>
       </Modal>
 
-      <Modal visible={savedListsVisible} transparent animationType="slide" onRequestClose={() => setSavedListsVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Saved Lists</Text>
-            {sessions.length === 0 ? (
-              <Text style={styles.emptyMini}>No checklist history yet.</Text>
-            ) : (
-              <ScrollView style={styles.savedListsScroll} contentContainerStyle={styles.savedListsContent}>
-                {sessions.map((session) => (
-                  <TouchableOpacity
-                    key={session.id}
-                    style={[styles.savedListRow, activeSessionId === session.id && styles.savedListRowActive]}
-                    onPress={() => selectSession(session.id)}
-                  >
-                    <Text style={[styles.savedListRowText, activeSessionId === session.id && styles.savedListRowTextActive]}>{session.title}</Text>
-                  </TouchableOpacity>
-                ))}
-                {activeSession ? (
-                  <View style={styles.checklistCard}>
-                    <Text style={styles.checklistMeta}>
-                      {activeSession.title} · {purchasedCount} bought · {outOfStockCount} out of stock
-                    </Text>
-                    {sessionItems.length === 0 ? (
-                      <Text style={styles.emptyMini}>No items in this checklist.</Text>
-                    ) : (
-                      sessionItems.map((sessionItem) => (
-                        <View key={sessionItem.id} style={styles.checkItemRow}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.checkItemName}>{sessionItem.itemName}</Text>
-                            <Text style={styles.checkItemMeta}>
-                              {sessionItem.plannedQuantity} {sessionItem.unit} · {sessionItem.status.replace('_', ' ')}
-                            </Text>
-                            {sessionItem.alternativeItemName ? (
-                              <Text style={styles.altText}>Alternative: {sessionItem.alternativeItemName}</Text>
-                            ) : null}
-                          </View>
-                          <View style={styles.checkActions}>
-                            <TouchableOpacity style={styles.buyBtn} onPress={() => markPurchased(sessionItem)}>
-                              <Text style={styles.buyBtnText}>Bought</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.outBtn} onPress={() => markOutOfStock(sessionItem)}>
-                              <Text style={styles.outBtnText}>Out</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      ))
-                    )}
-                  </View>
-                ) : null}
-              </ScrollView>
-            )}
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setSavedListsVisible(false)}>
-              <Text style={styles.cancelText}>Close</Text>
+      <Modal visible={savedListsVisible} animationType="slide" onRequestClose={() => setSavedListsVisible(false)}>
+        <View style={[styles.savedListsPage, isDark && { backgroundColor: '#12161D' }, { paddingTop: insets.top + Spacing.sm, paddingBottom: insets.bottom + Spacing.md }]}>
+          <View style={styles.savedHeaderRow}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Saved Lists</Text>
+            <TouchableOpacity style={styles.savedCloseBtn} onPress={() => setSavedListsVisible(false)}>
+              <Text style={styles.savedCloseBtnText}>Close</Text>
             </TouchableOpacity>
+          </View>
+          {sessions.length === 0 ? (
+            <Text style={styles.emptyMini}>No checklist history yet.</Text>
+          ) : (
+            <ScrollView style={styles.savedListsScroll} contentContainerStyle={[styles.savedListsContent, { paddingBottom: insets.bottom + Spacing.xl }]}>
+              {sessions.map((session) => {
+                const completed = isSessionComplete(session.id);
+                return (
+                  <View key={session.id} style={styles.savedListGroup}>
+                    <TouchableOpacity
+                      style={[
+                        styles.savedListRow,
+                        completed ? styles.savedListRowComplete : styles.savedListRowPending,
+                        activeSessionId === session.id && styles.savedListRowActive,
+                      ]}
+                      onPress={() => selectSession(session.id)}
+                    >
+                      <Text style={styles.savedListRowText}>{session.title}</Text>
+                      <Text style={styles.savedListRowMeta}>{completed ? 'Completed' : 'In progress'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.savedDeleteBtn, isDark && { backgroundColor: '#4B1E1E' }]} onPress={() => confirmDeleteSavedList(session)}>
+                      <Text style={styles.savedDeleteBtnText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+              {activeSession ? (
+                <View style={[styles.checklistCard, isDark && { backgroundColor: darkSurface }]}>
+                  <Text style={styles.checklistMeta}>
+                    {activeSession.title} · {purchasedCount} bought · {outOfStockCount} out of stock
+                  </Text>
+                  {sessionItems.length === 0 ? (
+                    <Text style={styles.emptyMini}>No items in this checklist.</Text>
+                  ) : (
+                    sessionItems.map((sessionItem) => (
+                      <View key={sessionItem.id} style={[styles.checkItemRow, isDark && { borderTopColor: darkBorder }]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.checkItemName, isDark && { color: darkText }]}>{sessionItem.itemName}</Text>
+                          <Text style={[styles.checkItemMeta, isDark && { color: darkMuted }]}>
+                            {sessionItem.plannedQuantity} {sessionItem.unit} · {sessionItem.status.replace('_', ' ')}
+                          </Text>
+                          {sessionItem.alternativeItemName ? (
+                            <Text style={styles.altText}>Alternative: {sessionItem.alternativeItemName}</Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.checkActions}>
+                          <TouchableOpacity style={styles.buyBtn} onPress={() => markPurchased(sessionItem)}>
+                            <Text style={styles.buyBtnText}>Bought</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.outBtn} onPress={() => markOutOfStock(sessionItem)}>
+                            <Text style={styles.outBtnText}>Out</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.editTinyBtn} onPress={() => openEditSavedItem(sessionItem)}>
+                            <Text style={styles.editTinyBtnText}>Edit</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.deleteTinyBtn} onPress={() => confirmDeleteSavedItem(sessionItem)}>
+                            <Text style={styles.deleteTinyBtnText}>Delete</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              ) : null}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
+
+      <Modal visible={editItemVisible} transparent animationType="fade" onRequestClose={() => setEditItemVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.altModal, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Edit Saved List Item</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Name</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editItemName} onChangeText={setEditItemName} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Unit</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editItemUnit} onChangeText={setEditItemUnit} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Quantity</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editItemQuantity} onChangeText={setEditItemQuantity} keyboardType="decimal-pad" />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditItemVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.createBtn} onPress={saveEditedSavedItem}>
+                <Text style={styles.createText}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
 
       <BarcodeScannerModal
         visible={scannerMode !== null}
-        title={scannerMode === 'register' ? 'Scan item barcode' : 'Search item'}
-        subtitle={scannerMode === 'register' ? 'Scan a barcode or QR code to fill the item code.' : 'Scan a barcode or QR code to search this tracker.'}
+        title={scannerMode === 'register' ? 'Scan item barcode' : scannerMode === 'alternative' ? 'Scan alternative item' : 'Search item'}
+        subtitle={
+          scannerMode === 'register'
+            ? 'Scan a barcode or QR code to fill the item code.'
+            : scannerMode === 'alternative'
+              ? 'Scan a barcode or QR code for the alternative item.'
+              : 'Scan a barcode or QR code to search this tracker.'
+        }
         onClose={() => setScannerMode(null)}
         onScanned={(value) => {
           if (scannerMode === 'register') {
             setBarcode(value);
+          } else if (scannerMode === 'alternative') {
+            setAlternativeBarcode(value);
           } else {
             setSearchQuery(value);
           }
@@ -394,6 +580,10 @@ const styles = StyleSheet.create({
   buyBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },
   outBtn: { backgroundColor: Colors.warning, borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 6 },
   outBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },
+  editTinyBtn: { backgroundColor: Colors.surfaceAlt, borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 6, borderWidth: 1, borderColor: Colors.border },
+  editTinyBtnText: { color: Colors.textSecondary, fontSize: FontSize.xs, fontWeight: '600' },
+  deleteTinyBtn: { backgroundColor: '#FEE2E2', borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 6 },
+  deleteTinyBtnText: { color: Colors.danger, fontSize: FontSize.xs, fontWeight: '700' },
   emptyMini: { color: Colors.textMuted, fontSize: FontSize.xs, marginHorizontal: Spacing.md, marginTop: Spacing.xs, fontStyle: 'italic' },
   list: { padding: Spacing.md, paddingBottom: 100 },
   card: {
@@ -422,12 +612,21 @@ const styles = StyleSheet.create({
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', lineHeight: 32 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, maxHeight: '90%' },
-  savedListsScroll: { maxHeight: 420 },
-  savedListsContent: { paddingBottom: Spacing.md },
-  savedListRow: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm, marginBottom: Spacing.xs },
-  savedListRowActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  savedListRowText: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '600' },
-  savedListRowTextActive: { color: '#fff' },
+  savedListsPage: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.md },
+  savedHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  savedCloseBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt },
+  savedCloseBtnText: { color: Colors.textSecondary, fontWeight: '700' },
+  savedListsScroll: { flex: 1, marginTop: Spacing.xs },
+  savedListsContent: { paddingBottom: Spacing.md, paddingTop: Spacing.sm },
+  savedListGroup: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.xs },
+  savedListRow: { flex: 1, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm },
+  savedListRowPending: { backgroundColor: '#E8F8F1', borderColor: Colors.primary },
+  savedListRowComplete: { backgroundColor: '#E5E7EB', borderColor: '#CBD5E1' },
+  savedListRowActive: { borderColor: Colors.primaryDark, borderWidth: 2 },
+  savedListRowText: { color: Colors.textPrimary, fontSize: FontSize.sm, fontWeight: '700' },
+  savedListRowMeta: { color: Colors.textSecondary, fontSize: FontSize.xs, marginTop: 2 },
+  savedDeleteBtn: { backgroundColor: '#FEE2E2', borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm },
+  savedDeleteBtnText: { color: Colors.danger, fontWeight: '700', fontSize: FontSize.xs },
   altModal: { backgroundColor: Colors.surface, margin: Spacing.md, borderRadius: Radius.lg, padding: Spacing.lg },
   modalTitle: { fontSize: FontSize.xl, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: Spacing.sm },
   fieldLabel: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textSecondary, marginTop: Spacing.sm, marginBottom: 2 },

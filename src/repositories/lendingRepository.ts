@@ -261,8 +261,11 @@ export async function recordLendingPayment(
   const payments = await getLendingPayments(lendingRequestId);
   const breakdown = computeLendingBreakdown(request, payments);
   if (breakdown.outstanding <= 0) throw new Error('This lending request is already fully paid.');
+  if (amountPaid > breakdown.outstanding) {
+    throw new Error(`Payment cannot exceed remaining balance of ${formatAmount(breakdown.outstanding, request.currency)}`);
+  }
 
-  const paymentAmount = Math.min(amountPaid, breakdown.outstanding);
+  const paymentAmount = amountPaid;
   const principalAllocation = Math.min(paymentAmount, breakdown.principalRemaining);
   const afterPrincipal = paymentAmount - principalAllocation;
   const interestAllocation = Math.min(afterPrincipal, breakdown.accruedInterest);

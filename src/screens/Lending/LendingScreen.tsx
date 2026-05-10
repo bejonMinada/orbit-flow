@@ -32,6 +32,8 @@ const STATUS_LABEL: Record<LendingStatus, string> = {
   declined: 'Declined',
   settled: 'Settled',
 };
+const MIN_LIST_BOTTOM_PADDING = 120;
+const FAB_CLEARANCE = 96;
 
 type LendingWithBreakdown = {
   request: LendingRequest;
@@ -71,6 +73,20 @@ export default function LendingScreen() {
   const [selectedLedgerId, setSelectedLedgerId] = useState('');
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkText = '#E6E9EE';
+
+  const addMonthsWithDayClamp = (dateValue: string, months: number): string => {
+    const parsed = new Date(dateValue);
+    if (Number.isNaN(parsed.getTime())) return dateValue;
+    const day = parsed.getDate();
+    const shifted = new Date(parsed);
+    shifted.setDate(1);
+    shifted.setMonth(shifted.getMonth() + months);
+    const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
+    shifted.setDate(Math.min(day, lastDay));
+    return shifted.toISOString().slice(0, 10);
+  };
 
   const load = useCallback(async () => {
     const [rs, ls] = await Promise.all([getLendingRequests(), getLedgers()]);
@@ -135,13 +151,13 @@ export default function LendingScreen() {
       return;
     }
     if (trimmedDueDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDueDate)) {
-      Alert.alert('Invalid date', 'Please enter the due date in YYYY-MM-DD format.');
+      Alert.alert('Invalid date', 'Please enter the borrow date in YYYY-MM-DD format.');
       return;
     }
     if (trimmedDueDate) {
       const parsed = new Date(trimmedDueDate);
       if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trimmedDueDate) {
-        Alert.alert('Invalid date', 'The due date is not a valid calendar date. Please check the day and month values.');
+        Alert.alert('Invalid date', 'The borrow date is not a valid calendar date. Please check the day and month values.');
         return;
       }
     }
@@ -155,7 +171,7 @@ export default function LendingScreen() {
         ledger?.baseCurrency ?? 'PHP',
         parsedInterest,
         parsedTerm,
-        trimmedDueDate,
+        trimmedDueDate ? addMonthsWithDayClamp(trimmedDueDate, 1) : undefined,
         parsedPenalty,
         undefined,
         note.trim() || undefined
@@ -180,7 +196,7 @@ export default function LendingScreen() {
     setEditAmount(String(request.amount));
     setEditInterestRate(String(request.interestRate));
     setEditTermMonths(String(request.termMonths));
-    setEditDueDate(request.dueDate ?? '');
+    setEditDueDate(request.dueDate ? addMonthsWithDayClamp(request.dueDate, -1) : '');
     setEditPenaltyRate(String(request.penaltyRate));
     setEditReference(request.referenceNumber ?? '');
     setEditNote(request.note ?? '');
@@ -234,6 +250,10 @@ export default function LendingScreen() {
       Alert.alert('Invalid payment', 'Please enter a valid payment amount.');
       return;
     }
+    if (selectedBreakdown && parsed > selectedBreakdown.outstanding) {
+      Alert.alert('Invalid payment', `Amount cannot be higher than remaining balance (${formatAmount(selectedBreakdown.outstanding, selectedDetail.request.currency)})`);
+      return;
+    }
 
     try {
       await recordLendingPayment(
@@ -264,7 +284,7 @@ export default function LendingScreen() {
         amount: parseFloat(editAmount) || 0,
         interestRate: parseFloat(editInterestRate) || 0,
         termMonths: parseInt(editTermMonths, 10) || 1,
-        dueDate: editDueDate.trim() || undefined,
+        dueDate: editDueDate.trim() ? addMonthsWithDayClamp(editDueDate.trim(), 1) : undefined,
         penaltyRate: parseFloat(editPenaltyRate) || 0,
         referenceNumber: editReference.trim() || undefined,
         note: editNote.trim() || undefined,
@@ -293,6 +313,23 @@ export default function LendingScreen() {
     );
   };
 
+  const markInstallmentPaid = async (month: number) => {
+    if (!selectedDetail || !selectedBreakdown) return;
+    const installment = selectedBreakdown.installments.find((i) => i.month === month);
+    if (!installment) return;
+    const remaining = Math.max(0, (installment.targetAmount + installment.penaltyAmount) - installment.paidAmount);
+    if (remaining <= 0) return;
+    try {
+      await recordLendingPayment(selectedDetail.request.id, remaining, undefined, `Installment month ${month} marked paid`);
+      const updatedRequest = (await getLendingRequests()).find((request) => request.id === selectedDetail.request.id) ?? selectedDetail.request;
+      const updatedPayments = await getLendingPayments(selectedDetail.request.id);
+      setSelectedDetail({ request: updatedRequest, payments: updatedPayments });
+      await load();
+    } catch (error) {
+      Alert.alert('Unable to update installment', error instanceof Error ? error.message : 'Please try again.');
+    }
+  };
+
   return (
     <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
@@ -305,34 +342,34 @@ export default function LendingScreen() {
       <FlatList
         data={requests}
         keyExtractor={(r) => r.id}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No settlement requests yet.</Text>}
+        contentContainerStyle={[styles.list, { paddingBottom: Math.max(MIN_LIST_BOTTOM_PADDING, insets.bottom + FAB_CLEARANCE) }]}
+        ListEmptyComponent={<Text style={[styles.empty, isDark && { color: darkText }]}>No settlement requests yet.</Text>}
         renderItem={({ item }) => {
           const payments = paymentsByRequest[item.id] ?? [];
           const breakdown = computeLendingBreakdown(item, payments);
           return (
-            <TouchableOpacity style={styles.card} onPress={() => handleAction(item)}>
+            <TouchableOpacity style={[styles.card, isDark && { backgroundColor: darkSurface }]} onPress={() => handleAction(item)}>
               <View style={styles.cardTop}>
-                <Text style={styles.borrowerName}>{item.borrowerName}</Text>
+                <Text style={[styles.borrowerName, isDark && { color: darkText }]}>{item.borrowerName}</Text>
                 <View style={[styles.badge, { backgroundColor: STATUS_COLOR[item.status] }]}>
                   <Text style={styles.badgeText}>{STATUS_LABEL[item.status]}</Text>
                 </View>
               </View>
-              <Text style={styles.cardAmount}>{formatAmount(item.amount, item.currency)}</Text>
-              <Text style={styles.cardLedger}>Cash Ledger: {ledgers.find((l) => l.id === item.ledgerId)?.name ?? 'Unknown'}</Text>
-              <Text style={styles.cardTxn}>TXN: {item.transactionCode || '—'}</Text>
-              <Text style={styles.cardDetail}>Term: {item.termMonths} month{item.termMonths > 1 ? 's' : ''}</Text>
-              <Text style={styles.cardDetail}>Monthly due: {formatAmount(breakdown.monthlyDue, item.currency)}</Text>
-              <Text style={styles.cardDetail}>Outstanding: {formatAmount(breakdown.outstanding, item.currency)}</Text>
-              {item.referenceNumber ? <Text style={styles.cardRef}>Ref: {item.referenceNumber}</Text> : null}
-              {item.note ? <Text style={styles.cardNote}>{item.note}</Text> : null}
-              <Text style={styles.cardDate}>{item.createdAt.split('T')[0]}</Text>
+              <Text style={[styles.cardAmount, isDark && { color: darkText }]}>{formatAmount(item.amount, item.currency)}</Text>
+              <Text style={[styles.cardLedger, isDark && { color: '#B8C2D1' }]}>Cash Ledger: {ledgers.find((l) => l.id === item.ledgerId)?.name ?? 'Unknown'}</Text>
+              <Text style={[styles.cardTxn, isDark && { color: '#94A3B8' }]}>TXN: {item.transactionCode || '—'}</Text>
+              <Text style={[styles.cardDetail, isDark && { color: '#B8C2D1' }]}>Term: {item.termMonths} month{item.termMonths > 1 ? 's' : ''}</Text>
+              <Text style={[styles.cardDetail, isDark && { color: '#B8C2D1' }]}>Monthly due: {formatAmount(breakdown.monthlyDue, item.currency)}</Text>
+              <Text style={[styles.cardDetail, isDark && { color: '#B8C2D1' }]}>Outstanding: {formatAmount(breakdown.outstanding, item.currency)}</Text>
+              {item.referenceNumber ? <Text style={[styles.cardRef, isDark && { color: '#B8C2D1' }]}>Ref: {item.referenceNumber}</Text> : null}
+              {item.note ? <Text style={[styles.cardNote, isDark && { color: '#B8C2D1' }]}>{item.note}</Text> : null}
+              <Text style={[styles.cardDate, isDark && { color: '#94A3B8' }]}>{item.createdAt.split('T')[0]}</Text>
             </TouchableOpacity>
           );
         }}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]} onPress={() => setModalVisible(true)}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
@@ -375,7 +412,7 @@ export default function LendingScreen() {
               <Text style={styles.infoHint}>Estimated monthly due: {getMonthlyPaymentPreview()}</Text>
             ) : null}
 
-            <Text style={styles.fieldLabel}>First Due Date (YYYY-MM-DD, optional)</Text>
+            <Text style={styles.fieldLabel}>Date Borrowed (YYYY-MM-DD, optional)</Text>
             <TextInput style={styles.input} placeholder="e.g. 2026-12-31" value={dueDate} onChangeText={setDueDate} />
 
             <Text style={styles.fieldLabel}>Penalty Rate (% per day after missed monthly due)</Text>
@@ -396,12 +433,22 @@ export default function LendingScreen() {
         </View>
       </Modal>
 
-      <Modal visible={detailModalVisible} transparent animationType="slide" onRequestClose={() => setDetailModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <ScrollView style={styles.modalBox} keyboardShouldPersistTaps="handled">
+      <Modal visible={detailModalVisible} animationType="slide" onRequestClose={() => setDetailModalVisible(false)}>
+        <View style={[styles.fullScreenModal, isDark && { backgroundColor: '#12161D' }, { paddingTop: insets.top + Spacing.sm, paddingBottom: insets.bottom + Spacing.md }]}>
+          <View style={styles.fullScreenHeader}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Settlement Details</Text>
+            <TouchableOpacity style={styles.cancelBtnTight} onPress={() => setDetailModalVisible(false)}>
+              <Text style={styles.cancelText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={[styles.modalBox, styles.fullScreenContent, isDark && { backgroundColor: darkSurface }]}
+            contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
+            keyboardShouldPersistTaps="handled"
+          >
             {!selectedDetail || !selectedBreakdown ? null : (
               <>
-                <Text style={styles.modalTitle}>{selectedDetail.request.borrowerName}</Text>
+                <Text style={[styles.modalTitle, isDark && { color: darkText }]}>{selectedDetail.request.borrowerName}</Text>
                 <Text style={styles.detailSubtitle}>
                   Outstanding: {formatAmount(selectedBreakdown.outstanding, selectedDetail.request.currency)}
                 </Text>
@@ -425,6 +472,11 @@ export default function LendingScreen() {
                     <Text style={[styles.installmentStatus, installment.status === 'overdue' && styles.overdueText]}>
                       Status: {installment.status}
                     </Text>
+                    {selectedDetail.request.status === 'approved' && installment.status !== 'paid' ? (
+                      <TouchableOpacity style={styles.markPaidBtn} onPress={() => markInstallmentPaid(installment.month)}>
+                        <Text style={styles.markPaidBtnText}>Mark Paid</Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 ))}
 
@@ -452,14 +504,11 @@ export default function LendingScreen() {
                     <Text style={styles.createText}>Add Payment</Text>
                   </TouchableOpacity>
                 ) : null}
-                <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(selectedDetail.request)}>
+                <TouchableOpacity style={[styles.editBtn, { marginBottom: Spacing.md }]} onPress={() => openEdit(selectedDetail.request)}>
                   <Text style={styles.editBtnText}>Edit Details</Text>
                 </TouchableOpacity>
               </>
             )}
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setDetailModalVisible(false)}>
-              <Text style={styles.cancelText}>Close</Text>
-            </TouchableOpacity>
           </ScrollView>
         </View>
       </Modal>
@@ -486,10 +535,15 @@ export default function LendingScreen() {
         </View>
       </Modal>
 
-      <Modal visible={editModalVisible} transparent animationType="fade" onRequestClose={() => setEditModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.settleBox}>
-            <Text style={styles.modalTitle}>Edit Settlement Item</Text>
+      <Modal visible={editModalVisible} animationType="slide" onRequestClose={() => setEditModalVisible(false)}>
+        <View style={[styles.fullScreenModal, isDark && { backgroundColor: '#12161D' }, { paddingTop: insets.top + Spacing.sm, paddingBottom: insets.bottom + Spacing.md }]}>
+          <View style={styles.fullScreenHeader}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Edit Settlement Item</Text>
+            <TouchableOpacity style={styles.cancelBtnTight} onPress={() => setEditModalVisible(false)}>
+              <Text style={styles.cancelText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={[styles.modalBox, styles.fullScreenContent, isDark && { backgroundColor: darkSurface }]} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}>
             <Text style={styles.fieldLabel}>Borrower Name</Text>
             <TextInput style={styles.input} value={editBorrowerName} onChangeText={setEditBorrowerName} />
             <Text style={styles.fieldLabel}>Amount</Text>
@@ -498,7 +552,7 @@ export default function LendingScreen() {
             <TextInput style={styles.input} value={editInterestRate} onChangeText={setEditInterestRate} keyboardType="decimal-pad" />
             <Text style={styles.fieldLabel}>Term (months)</Text>
             <TextInput style={styles.input} value={editTermMonths} onChangeText={setEditTermMonths} keyboardType="number-pad" />
-            <Text style={styles.fieldLabel}>Due Date (YYYY-MM-DD)</Text>
+            <Text style={styles.fieldLabel}>Date Borrowed (YYYY-MM-DD)</Text>
             <TextInput style={styles.input} value={editDueDate} onChangeText={setEditDueDate} />
             <Text style={styles.fieldLabel}>Penalty Rate (% per day)</Text>
             <TextInput style={styles.input} value={editPenaltyRate} onChangeText={setEditPenaltyRate} keyboardType="decimal-pad" />
@@ -506,7 +560,7 @@ export default function LendingScreen() {
             <TextInput style={styles.input} value={editReference} onChangeText={setEditReference} />
             <Text style={styles.fieldLabel}>Note</Text>
             <TextInput style={styles.input} value={editNote} onChangeText={setEditNote} />
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, { marginTop: Spacing.lg }]}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModalVisible(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -514,7 +568,7 @@ export default function LendingScreen() {
                 <Text style={styles.createText}>Save</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -552,6 +606,9 @@ const styles = StyleSheet.create({
   },
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', lineHeight: 32 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  fullScreenModal: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.md },
+  fullScreenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fullScreenContent: { flex: 1, borderRadius: Radius.lg },
   modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, maxHeight: '90%' },
   settleBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, margin: Spacing.md, borderRadius: Radius.xl },
   modalTitle: { fontSize: FontSize.xl, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: Spacing.sm },
@@ -566,6 +623,7 @@ const styles = StyleSheet.create({
   availableBalance: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 4 },
   modalActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md, marginBottom: Spacing.md },
   cancelBtn: { flex: 1, minHeight: 48, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  cancelBtnTight: { minHeight: 40, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   cancelText: { color: Colors.textSecondary, fontWeight: '600' },
   createBtn: { flex: 1, minHeight: 48, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   createText: { color: '#fff', fontWeight: '600' },
@@ -576,6 +634,8 @@ const styles = StyleSheet.create({
   installmentTitle: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textPrimary },
   installmentMeta: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
   installmentStatus: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2, textTransform: 'capitalize' },
+  markPaidBtn: { alignSelf: 'flex-start', marginTop: Spacing.xs, backgroundColor: Colors.primary, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm, paddingVertical: 6 },
+  markPaidBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '700' },
   paymentCard: { backgroundColor: Colors.surfaceAlt, padding: Spacing.sm, borderRadius: Radius.md, marginBottom: Spacing.xs },
   paymentAmount: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textPrimary },
   paymentMeta: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
