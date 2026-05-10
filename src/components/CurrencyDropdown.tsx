@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { CURRENCIES } from '../data/currencies';
 import { Colors, FontSize, Radius, Spacing } from '../constants';
+import { useThemeMode } from '../theme/ThemeContext';
 
 type Props = {
   value: string;
@@ -20,6 +21,13 @@ export default function CurrencyDropdown({
   label = 'Currency',
   popularOnly = false,
 }: Props) {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkSurfaceAlt = '#2A3240';
+  const darkBorder = '#334155';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -34,19 +42,20 @@ export default function CurrencyDropdown({
 
   return (
     <View>
-      <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={styles.trigger} onPress={() => setVisible(true)}>
-        <Text style={styles.value}>{value}</Text>
-        <Text style={styles.arrow}>▾</Text>
+      <Text style={[styles.label, isDark && { color: darkMuted }]}>{label}</Text>
+      <TouchableOpacity style={[styles.trigger, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }]} onPress={() => setVisible(true)}>
+        <Text style={[styles.value, isDark && { color: darkText }]}>{value}</Text>
+        <Text style={[styles.arrow, isDark && { color: darkMuted }]}>▾</Text>
       </TouchableOpacity>
 
       <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
         <View style={styles.overlay}>
-          <View style={styles.modal}>
-            <Text style={styles.title}>Select Currency</Text>
+          <View style={[styles.modal, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.title, isDark && { color: darkText }]}>Select Currency</Text>
             <TextInput
-              style={styles.search}
+              style={[styles.search, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}
               placeholder="Search currency"
+              placeholderTextColor={isDark ? darkMuted : undefined}
               value={query}
               onChangeText={setQuery}
             />
@@ -56,16 +65,16 @@ export default function CurrencyDropdown({
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.row, item.code === value && styles.rowActive]}
+                  style={[styles.row, isDark && { borderBottomColor: darkBorder }, item.code === value && styles.rowActive, isDark && item.code === value && { backgroundColor: darkSurfaceAlt }]}
                   onPress={() => { onChange(item.code); setVisible(false); }}
                 >
-                  <Text style={styles.code}>{item.code}</Text>
-                  <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+                  <Text style={[styles.code, isDark && { color: darkText }]}>{item.code}</Text>
+                  <Text style={[styles.name, isDark && { color: darkMuted }]} numberOfLines={1}>{item.name}</Text>
                 </TouchableOpacity>
               )}
             />
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setVisible(false)}>
-              <Text style={styles.closeText}>Close</Text>
+            <TouchableOpacity style={[styles.closeBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setVisible(false)}>
+              <Text style={[styles.closeText, isDark && { color: darkText }]}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>

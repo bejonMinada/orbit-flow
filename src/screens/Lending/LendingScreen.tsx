@@ -77,6 +77,7 @@ export default function LendingScreen() {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
   const darkSurface = '#1F252F';
+  const darkSurfaceAlt = '#2A3240';
   const darkBorder = '#334155';
   const darkText = '#E6E9EE';
   const darkMuted = '#B8C2D1';
@@ -408,15 +409,15 @@ export default function LendingScreen() {
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <ScrollView style={styles.modalBox} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalTitle}>New Settlement Request</Text>
+          <ScrollView style={[styles.modalBox, isDark && { backgroundColor: darkSurface }]} keyboardShouldPersistTaps="handled">
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>New Settlement Request</Text>
 
-            <Text style={styles.fieldLabel}>Cash Ledger</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Cash Ledger</Text>
             <View style={styles.ledgerPicker}>
               {ledgers.map((l) => (
                 <TouchableOpacity
                   key={l.id}
-                  style={[styles.ledgerChip, selectedLedgerId === l.id && styles.ledgerChipActive]}
+                  style={[styles.ledgerChip, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }, selectedLedgerId === l.id && styles.ledgerChipActive]}
                   onPress={() => setSelectedLedgerId(l.id)}
                 >
                   <Text style={[styles.ledgerChipText, selectedLedgerId === l.id && { color: '#fff' }]}>{l.name}</Text>
@@ -424,35 +425,35 @@ export default function LendingScreen() {
               ))}
             </View>
             {selectedLedger ? (
-              <Text style={styles.availableBalance}>
+              <Text style={[styles.availableBalance, isDark && { color: darkMuted }]}>
                 Available: {formatAmount(ledgerBalances[selectedLedger.id] ?? 0, selectedLedger.baseCurrency)}
               </Text>
             ) : null}
 
-            <Text style={styles.fieldLabel}>Borrower Name</Text>
-            <TextInput style={styles.input} placeholder="Full name" value={borrowerName} onChangeText={setBorrowerName} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Borrower Name</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="Full name" placeholderTextColor={isDark ? darkMuted : undefined} value={borrowerName} onChangeText={setBorrowerName} />
 
-            <Text style={styles.fieldLabel}>Amount</Text>
-            <TextInput style={styles.input} placeholder="0.00" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Amount</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="0.00" placeholderTextColor={isDark ? darkMuted : undefined} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
 
-            <Text style={styles.fieldLabel}>Monthly Interest Rate (%)</Text>
-            <TextInput style={styles.input} placeholder="e.g. 2 for 2% per month (0 = none)" value={interestRate} onChangeText={setInterestRate} keyboardType="decimal-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Monthly Interest Rate (%)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="e.g. 2 for 2% per month (0 = none)" placeholderTextColor={isDark ? darkMuted : undefined} value={interestRate} onChangeText={setInterestRate} keyboardType="decimal-pad" />
 
-            <Text style={styles.fieldLabel}>Repayment Term (months)</Text>
-            <TextInput style={styles.input} placeholder="e.g. 6" value={termMonths} onChangeText={setTermMonths} keyboardType="number-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Repayment Term (months)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="e.g. 6" placeholderTextColor={isDark ? darkMuted : undefined} value={termMonths} onChangeText={setTermMonths} keyboardType="number-pad" />
 
             {getMonthlyPaymentPreview() ? (
-              <Text style={styles.infoHint}>Estimated monthly due: {getMonthlyPaymentPreview()}</Text>
+              <Text style={[styles.infoHint, isDark && { color: darkText }]}>Estimated monthly due: {getMonthlyPaymentPreview()}</Text>
             ) : null}
 
-            <Text style={styles.fieldLabel}>Date Borrowed (YYYY-MM-DD, optional)</Text>
-            <TextInput style={styles.input} placeholder="e.g. 2026-12-31" value={dueDate} onChangeText={setDueDate} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Date Borrowed (YYYY-MM-DD, optional)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="e.g. 2026-12-31" placeholderTextColor={isDark ? darkMuted : undefined} value={dueDate} onChangeText={setDueDate} />
 
-            <Text style={styles.fieldLabel}>Penalty Rate (% per day after missed monthly due)</Text>
-            <TextInput style={styles.input} placeholder="e.g. 0.3" value={penaltyRate} onChangeText={setPenaltyRate} keyboardType="decimal-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Penalty Rate (% per day after missed monthly due)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="e.g. 0.3" placeholderTextColor={isDark ? darkMuted : undefined} value={penaltyRate} onChangeText={setPenaltyRate} keyboardType="decimal-pad" />
 
-            <Text style={styles.fieldLabel}>Note (optional)</Text>
-            <TextInput style={styles.input} placeholder="Optional note" value={note} onChangeText={setNote} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Note (optional)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="Optional note" placeholderTextColor={isDark ? darkMuted : undefined} value={note} onChangeText={setNote} />
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => { resetForm(); setModalVisible(false); }}>
@@ -472,17 +473,17 @@ export default function LendingScreen() {
             <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Settlement Details</Text>
             <View style={styles.fullScreenHeaderRight}>
               {selectedDetail?.request.status === 'approved' ? (
-                <TouchableOpacity style={styles.headerActionBtn} onPress={() => setPaymentModalVisible(true)}>
-                  <Text style={styles.headerActionBtnText}>Add Payment</Text>
+                <TouchableOpacity style={[styles.headerActionBtn, isDark && { backgroundColor: Colors.primaryDark }]} onPress={() => setPaymentModalVisible(true)}>
+                  <Text style={[styles.headerActionBtnText, isDark && { color: '#F1F5F9' }]}>Add Payment</Text>
                 </TouchableOpacity>
               ) : null}
               {selectedDetail ? (
-                <TouchableOpacity style={styles.headerEditBtn} onPress={() => openEdit(selectedDetail.request)}>
-                  <Text style={styles.headerEditBtnText}>Edit</Text>
+                <TouchableOpacity style={[styles.headerEditBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => openEdit(selectedDetail.request)}>
+                  <Text style={[styles.headerEditBtnText, isDark && { color: darkText }]}>Edit</Text>
                 </TouchableOpacity>
               ) : null}
-              <TouchableOpacity style={styles.cancelBtnTight} onPress={() => setDetailModalVisible(false)}>
-                <Text style={styles.cancelText}>Close</Text>
+              <TouchableOpacity style={[styles.cancelBtnTight, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setDetailModalVisible(false)}>
+                <Text style={[styles.cancelText, isDark && { color: darkText }]}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -494,20 +495,15 @@ export default function LendingScreen() {
             {!selectedDetail || !selectedBreakdown ? null : (
               <>
                 <Text style={[styles.modalTitle, isDark && { color: darkText }]}>{selectedDetail.request.borrowerName}</Text>
-                <Text style={styles.detailSubtitle}>
+                <Text style={[styles.detailSubtitle, isDark && { color: '#7DD3FC' }]}>
                   Outstanding: {formatAmount(selectedBreakdown.outstanding, selectedDetail.request.currency)}
                 </Text>
-                <Text style={styles.cardDetail}>Principal remaining: {formatAmount(selectedBreakdown.principalRemaining, selectedDetail.request.currency)}</Text>
-                <Text style={styles.cardDetail}>Accrued interest: {formatAmount(selectedBreakdown.accruedInterest, selectedDetail.request.currency)}</Text>
-                <Text style={styles.cardDetail}>Future interest: {formatAmount(selectedBreakdown.futureInterest, selectedDetail.request.currency)}</Text>
-                <Text style={styles.cardDetail}>Penalties: {formatAmount(selectedBreakdown.penalties, selectedDetail.request.currency)}</Text>
-                {selectedBreakdown.cashbackIfPaidInFull > 0 ? (
-                  <Text style={styles.cashbackText}>
-                    Advance full-payment cashback available: {formatAmount(selectedBreakdown.cashbackIfPaidInFull, selectedDetail.request.currency)}
-                  </Text>
-                ) : null}
+                <Text style={[styles.cardDetail, isDark && { color: darkMuted }]}>Principal remaining: {formatAmount(selectedBreakdown.principalRemaining, selectedDetail.request.currency)}</Text>
+                <Text style={[styles.cardDetail, isDark && { color: darkMuted }]}>Accrued interest: {formatAmount(selectedBreakdown.accruedInterest, selectedDetail.request.currency)}</Text>
+                <Text style={[styles.cardDetail, isDark && { color: darkMuted }]}>Future interest: {formatAmount(selectedBreakdown.futureInterest, selectedDetail.request.currency)}</Text>
+                <Text style={[styles.cardDetail, isDark && { color: darkMuted }]}>Penalties: {formatAmount(selectedBreakdown.penalties, selectedDetail.request.currency)}</Text>
 
-                <Text style={styles.sectionTitle}>Monthly Breakdown</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Monthly Breakdown</Text>
                 {selectedBreakdown.installments.map((installment) => (
                   (() => {
                     const threshold = getSettlementThreshold(selectedDetail.request.currency);
@@ -517,12 +513,12 @@ export default function LendingScreen() {
                       && installment.status !== 'paid'
                       && actionable;
                     return (
-                      <View key={`${selectedDetail.request.id}_${installment.month}`} style={styles.installmentCard}>
-                        <Text style={styles.installmentTitle}>Month {installment.month} • Due {installment.dueDate}</Text>
-                        <Text style={styles.installmentMeta}>Due: {formatAmount(installment.targetAmount, selectedDetail.request.currency)}</Text>
-                        <Text style={styles.installmentMeta}>Paid: {formatAmount(installment.paidAmount, selectedDetail.request.currency)}</Text>
-                        <Text style={styles.installmentMeta}>Penalty: {formatAmount(installment.penaltyAmount, selectedDetail.request.currency)}</Text>
-                        <Text style={[styles.installmentStatus, installment.status === 'overdue' && styles.overdueText]}>
+                      <View key={`${selectedDetail.request.id}_${installment.month}`} style={[styles.installmentCard, isDark && { backgroundColor: darkSurfaceAlt }]}>
+                        <Text style={[styles.installmentTitle, isDark && { color: darkText }]}>Month {installment.month} • Due {installment.dueDate}</Text>
+                        <Text style={[styles.installmentMeta, isDark && { color: darkMuted }]}>Due: {formatAmount(installment.targetAmount, selectedDetail.request.currency)}</Text>
+                        <Text style={[styles.installmentMeta, isDark && { color: darkMuted }]}>Paid: {formatAmount(installment.paidAmount, selectedDetail.request.currency)}</Text>
+                        <Text style={[styles.installmentMeta, isDark && { color: darkMuted }]}>Penalty: {formatAmount(installment.penaltyAmount, selectedDetail.request.currency)}</Text>
+                        <Text style={[styles.installmentStatus, isDark && { color: darkMuted }, installment.status === 'overdue' && styles.overdueText]}>
                           Status: {installment.status}
                         </Text>
                         {shouldShowMarkPaid ? (
@@ -541,21 +537,18 @@ export default function LendingScreen() {
                   })()
                 ))}
 
-                <Text style={styles.sectionTitle}>Transactions</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Transactions</Text>
                 {selectedDetail.payments.length === 0 ? (
-                  <Text style={styles.empty}>No payments yet.</Text>
+                  <Text style={[styles.empty, isDark && { color: darkMuted }]}>No payments yet.</Text>
                 ) : (
                   selectedDetail.payments.map((payment) => (
-                    <View key={payment.id} style={styles.paymentCard}>
-                      <Text style={styles.paymentAmount}>{formatAmount(payment.amountPaid, selectedDetail.request.currency)}</Text>
-                      <Text style={styles.paymentMeta}>Principal: {formatAmount(payment.appliedPrincipal, selectedDetail.request.currency)}</Text>
-                      <Text style={styles.paymentMeta}>Interest: {formatAmount(payment.appliedInterest, selectedDetail.request.currency)}</Text>
-                      <Text style={styles.paymentMeta}>Penalty: {formatAmount(payment.appliedPenalty, selectedDetail.request.currency)}</Text>
-                      {payment.cashbackAmount > 0 ? (
-                        <Text style={styles.cashbackText}>Cashback applied: {formatAmount(payment.cashbackAmount, selectedDetail.request.currency)}</Text>
-                      ) : null}
-                      {payment.note ? <Text style={styles.paymentMeta}>{payment.note}</Text> : null}
-                      <Text style={styles.cardDate}>{payment.paidAt.split('T')[0]}</Text>
+                    <View key={payment.id} style={[styles.paymentCard, isDark && { backgroundColor: darkSurfaceAlt }]}>
+                      <Text style={[styles.paymentAmount, isDark && { color: darkText }]}>{formatAmount(payment.amountPaid, selectedDetail.request.currency)}</Text>
+                      <Text style={[styles.paymentMeta, isDark && { color: darkMuted }]}>Principal: {formatAmount(payment.appliedPrincipal, selectedDetail.request.currency)}</Text>
+                      <Text style={[styles.paymentMeta, isDark && { color: darkMuted }]}>Interest: {formatAmount(payment.appliedInterest, selectedDetail.request.currency)}</Text>
+                      <Text style={[styles.paymentMeta, isDark && { color: darkMuted }]}>Penalty: {formatAmount(payment.appliedPenalty, selectedDetail.request.currency)}</Text>
+                      {payment.note ? <Text style={[styles.paymentMeta, isDark && { color: darkMuted }]}>{payment.note}</Text> : null}
+                      <Text style={[styles.cardDate, isDark && { color: '#94A3B8' }]}>{payment.paidAt.split('T')[0]}</Text>
                     </View>
                   ))
                 )}
@@ -568,17 +561,17 @@ export default function LendingScreen() {
 
       <Modal visible={paymentModalVisible} transparent animationType="fade" onRequestClose={() => setPaymentModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.settleBox}>
-            <Text style={styles.modalTitle}>Record Payment</Text>
-            <Text style={styles.fieldLabel}>Amount</Text>
-            <TextInput style={styles.input} value={paymentAmount} onChangeText={setPaymentAmount} keyboardType="decimal-pad" placeholder="0.00" />
-            <Text style={styles.fieldLabel}>Reference Number (optional)</Text>
-            <TextInput style={styles.input} value={paymentReference} onChangeText={setPaymentReference} placeholder="e.g. GC123456789" />
-            <Text style={styles.fieldLabel}>Note (optional)</Text>
-            <TextInput style={styles.input} value={paymentNote} onChangeText={setPaymentNote} placeholder="e.g. advance partial payment" />
+          <View style={[styles.settleBox, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Record Payment</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Amount</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={paymentAmount} onChangeText={setPaymentAmount} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={isDark ? darkMuted : undefined} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Reference Number (optional)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={paymentReference} onChangeText={setPaymentReference} placeholder="e.g. GC123456789" placeholderTextColor={isDark ? darkMuted : undefined} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Note (optional)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={paymentNote} onChangeText={setPaymentNote} placeholder="e.g. advance partial payment" placeholderTextColor={isDark ? darkMuted : undefined} />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setPaymentModalVisible(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setPaymentModalVisible(false)}>
+                <Text style={[styles.cancelText, isDark && { color: darkText }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.createBtn, savingPayment && styles.disabledBtn]} onPress={submitPayment} disabled={savingPayment}>
                 <Text style={styles.createText}>{savingPayment ? 'Saving...' : 'Save Payment'}</Text>
@@ -592,30 +585,30 @@ export default function LendingScreen() {
         <View style={[styles.fullScreenModal, isDark && { backgroundColor: '#12161D' }, { paddingTop: insets.top + Spacing.sm, paddingBottom: insets.bottom + Spacing.md }]}>
           <View style={styles.fullScreenHeader}>
             <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Edit Settlement Item</Text>
-            <TouchableOpacity style={styles.cancelBtnTight} onPress={() => setEditModalVisible(false)}>
-              <Text style={styles.cancelText}>Close</Text>
+            <TouchableOpacity style={[styles.cancelBtnTight, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setEditModalVisible(false)}>
+              <Text style={[styles.cancelText, isDark && { color: darkText }]}>Close</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={[styles.modalBox, styles.fullScreenContent, isDark && { backgroundColor: darkSurface }]} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}>
-            <Text style={styles.fieldLabel}>Borrower Name</Text>
-            <TextInput style={styles.input} value={editBorrowerName} onChangeText={setEditBorrowerName} />
-            <Text style={styles.fieldLabel}>Amount</Text>
-            <TextInput style={styles.input} value={editAmount} onChangeText={setEditAmount} keyboardType="decimal-pad" />
-            <Text style={styles.fieldLabel}>Monthly Interest Rate (%)</Text>
-            <TextInput style={styles.input} value={editInterestRate} onChangeText={setEditInterestRate} keyboardType="decimal-pad" />
-            <Text style={styles.fieldLabel}>Term (months)</Text>
-            <TextInput style={styles.input} value={editTermMonths} onChangeText={setEditTermMonths} keyboardType="number-pad" />
-            <Text style={styles.fieldLabel}>Date Borrowed (YYYY-MM-DD)</Text>
-            <TextInput style={styles.input} value={editDueDate} onChangeText={setEditDueDate} />
-            <Text style={styles.fieldLabel}>Penalty Rate (% per day)</Text>
-            <TextInput style={styles.input} value={editPenaltyRate} onChangeText={setEditPenaltyRate} keyboardType="decimal-pad" />
-            <Text style={styles.fieldLabel}>Reference Number</Text>
-            <TextInput style={styles.input} value={editReference} onChangeText={setEditReference} />
-            <Text style={styles.fieldLabel}>Note</Text>
-            <TextInput style={styles.input} value={editNote} onChangeText={setEditNote} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Borrower Name</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editBorrowerName} onChangeText={setEditBorrowerName} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Amount</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editAmount} onChangeText={setEditAmount} keyboardType="decimal-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Monthly Interest Rate (%)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editInterestRate} onChangeText={setEditInterestRate} keyboardType="decimal-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Term (months)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editTermMonths} onChangeText={setEditTermMonths} keyboardType="number-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Date Borrowed (YYYY-MM-DD)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editDueDate} onChangeText={setEditDueDate} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Penalty Rate (% per day)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editPenaltyRate} onChangeText={setEditPenaltyRate} keyboardType="decimal-pad" />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Reference Number</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editReference} onChangeText={setEditReference} />
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Note</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editNote} onChangeText={setEditNote} />
             <View style={[styles.modalActions, { marginTop: Spacing.lg }]}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModalVisible(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setEditModalVisible(false)}>
+                <Text style={[styles.cancelText, isDark && { color: darkText }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={confirmSaveLendingEdit}>
                 <Text style={styles.createText}>Save</Text>
@@ -662,10 +655,10 @@ const styles = StyleSheet.create({
   fullScreenModal: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.md },
   fullScreenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   fullScreenHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginLeft: Spacing.md },
-  headerActionBtn: { minHeight: 34, paddingHorizontal: Spacing.sm, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
-  headerActionBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '700' },
+  headerActionBtn: { minHeight: 40, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  headerActionBtnText: { color: '#fff', fontSize: FontSize.sm, fontWeight: '700' },
   headerEditBtn: { minHeight: 40, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  headerEditBtnText: { color: Colors.textSecondary, fontSize: FontSize.xs, fontWeight: '700' },
+  headerEditBtnText: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '700' },
   fullScreenContent: { flex: 1, borderRadius: Radius.lg },
   modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, maxHeight: '90%' },
   settleBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, margin: Spacing.md, borderRadius: Radius.xl },
@@ -682,7 +675,7 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md, marginBottom: Spacing.md },
   cancelBtn: { flex: 1, minHeight: 48, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   cancelBtnTight: { minHeight: 40, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  cancelText: { color: Colors.textSecondary, fontWeight: '600' },
+  cancelText: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '600' },
   createBtn: { flex: 1, minHeight: 48, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   createText: { color: '#fff', fontWeight: '600' },
   disabledBtn: { opacity: 0.65 },
@@ -698,5 +691,4 @@ const styles = StyleSheet.create({
   paymentCard: { backgroundColor: Colors.surfaceAlt, padding: Spacing.sm, borderRadius: Radius.md, marginBottom: Spacing.xs },
   paymentAmount: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textPrimary },
   paymentMeta: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
-  cashbackText: { fontSize: FontSize.xs, color: Colors.primaryDark, marginTop: 2, fontWeight: '600' },
 });
