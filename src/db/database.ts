@@ -134,8 +134,40 @@ export async function initDb(): Promise<void> {
     );
   `);
 
+  await runMigrations(db);
   await seedCategories(db);
   await seedDefaultWorkspace(db);
+}
+
+async function addColumnIfMissing(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+  definition: string
+): Promise<void> {
+  const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  if (!cols.find((c) => c.name === column)) {
+    await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+  await addColumnIfMissing(db, 'lending_requests', 'transaction_code', "TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing(db, 'lending_requests', 'interest_rate', 'REAL NOT NULL DEFAULT 0');
+  await addColumnIfMissing(db, 'lending_requests', 'due_date', 'TEXT');
+  await addColumnIfMissing(db, 'lending_requests', 'penalty_rate', 'REAL NOT NULL DEFAULT 0');
+
+  // Index to speed up category breakdown and income/expense queries
+  await db.execAsync(`
+    CREATE INDEX IF NOT EXISTS idx_entries_kind_currency_category
+      ON entries (kind, currency, category_id);
+  `);
+
+  // Expression index to speed up case-insensitive ledger name duplicate checks
+  await db.execAsync(`
+    CREATE INDEX IF NOT EXISTS idx_ledgers_name_lower
+      ON ledgers (LOWER(name));
+  `);
 }
 
 async function seedCategories(db: SQLite.SQLiteDatabase): Promise<void> {

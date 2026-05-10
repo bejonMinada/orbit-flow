@@ -30,10 +30,10 @@ export default function BottomTabNavigator() {
         headerShown: false,
       }}
     >
-      <Tab.Screen name="Dashboard" component={HomeScreen} options={{ tabBarIcon: icon('🪐') }} />
-      <Tab.Screen name="Ledgers" component={LedgersNavigator} options={{ tabBarIcon: icon('💳') }} />
-      <Tab.Screen name="Itemized" component={ItemizedNavigator} options={{ tabBarIcon: icon('📦') }} />
-      <Tab.Screen name="Lending" component={LendingScreen} options={{ tabBarIcon: icon('🤝'), tabBarLabel: 'Lending' }} />
+      <Tab.Screen name="Dashboard" component={HomeScreen} options={{ tabBarIcon: icon('📊') }} />
+      <Tab.Screen name="Ledgers" component={LedgersNavigator} options={{ tabBarIcon: icon('💰') }} />
+      <Tab.Screen name="Itemized" component={ItemizedNavigator} options={{ tabBarIcon: icon('🧾') }} />
+      <Tab.Screen name="Lending" component={LendingScreen} options={{ tabBarIcon: icon('💵'), tabBarLabel: 'Lending' }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarIcon: icon('⚙️') }} />
     </Tab.Navigator>
   );

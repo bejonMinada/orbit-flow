@@ -21,6 +21,13 @@ export async function getItemTrackers(): Promise<ItemTracker[]> {
 
 export async function createItemTracker(name: string): Promise<ItemTracker> {
   const db = getDb();
+  const existing = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM item_trackers WHERE LOWER(name) = LOWER(?)',
+    [name]
+  );
+  if (existing && existing.count > 0) {
+    throw new Error(`A tracker named "${name}" already exists. Please choose a different name.`);
+  }
   const now = new Date().toISOString();
   const id = newId('it');
   await db.runAsync(
@@ -68,6 +75,13 @@ export async function createTrackedItem(
   barcode?: string
 ): Promise<TrackedItem> {
   const db = getDb();
+  const existing = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM tracked_items WHERE tracker_id = ? AND LOWER(name) = LOWER(?)',
+    [trackerId, name]
+  );
+  if (existing && existing.count > 0) {
+    throw new Error(`An item named "${name}" already exists in this tracker. Please choose a different name.`);
+  }
   const now = new Date().toISOString();
   const id = newId('item');
   const priceHistory: PriceRecord[] = [{ price, currency, at: now }];

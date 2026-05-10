@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
 import { getLendingRequests, createLendingRequest, updateLendingStatus } from '../../repositories/lendingRepository';
 import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepository';
@@ -24,14 +25,34 @@ const STATUS_LABEL: Record<LendingStatus, string> = {
   settled: 'Settled',
 };
 
+function getOverdueInfo(req: LendingRequest): { daysOverdue: number; penaltyAmount: number } {
+  if (!req.dueDate || req.penaltyRate <= 0 || req.status !== 'approved') {
+    return { daysOverdue: 0, penaltyAmount: 0 };
+  }
+  const due = new Date(req.dueDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  const daysOverdue = Math.max(0, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+  const penaltyAmount = req.amount * (req.penaltyRate / 100) * daysOverdue;
+  return { daysOverdue, penaltyAmount };
+}
+
 export default function LendingScreen() {
+  const insets = useSafeAreaInsets();
   const [requests, setRequests] = useState<LendingRequest[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [ledgerBalances, setLedgerBalances] = useState<Record<string, number>>({});
   const [modalVisible, setModalVisible] = useState(false);
+  const [settleModalVisible, setSettleModalVisible] = useState(false);
+  const [pendingSettleId, setPendingSettleId] = useState<string>('');
+  const [settleRefNum, setSettleRefNum] = useState('');
+
   const [borrowerName, setBorrowerName] = useState('');
   const [amount, setAmount] = useState('');
-  const [refNum, setRefNum] = useState('');
+  const [interestRate, setInterestRate] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [penaltyRate, setPenaltyRate] = useState('');
   const [note, setNote] = useState('');
   const [selectedLedgerId, setSelectedLedgerId] = useState('');
 
@@ -50,16 +71,41 @@ export default function LendingScreen() {
   const lendingMetrics = getLendingMetrics(requests);
   const outstandingLabel = formatLendingOutstanding(requests);
 
+  const resetForm = () => {
+    setBorrowerName(''); setAmount(''); setInterestRate('');
+    setDueDate(''); setPenaltyRate(''); setNote('');
+  };
+
   const handleAdd = async () => {
     if (!borrowerName.trim() || !amount.trim() || !selectedLedgerId) {
       Alert.alert('Missing fields', 'Please fill in borrower name, amount and select a ledger.');
       return;
     }
+    const parsedAmount = parseFloat(amount);
+    const parsedInterest = parseFloat(interestRate) || 0;
+    const parsedPenalty = parseFloat(penaltyRate) || 0;
+    const trimmedDueDate = dueDate.trim() || undefined;
+
+    if (trimmedDueDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDueDate)) {
+      Alert.alert('Invalid date', 'Please enter the due date in YYYY-MM-DD format.');
+      return;
+    }
+    if (trimmedDueDate) {
+      const parsed = new Date(trimmedDueDate);
+      if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trimmedDueDate) {
+        Alert.alert('Invalid date', 'The due date is not a valid calendar date. Please check the day and month values.');
+        return;
+      }
+    }
+
     try {
-      const parsedAmount = parseFloat(amount);
       const ledger = ledgers.find((l) => l.id === selectedLedgerId);
-      await createLendingRequest(selectedLedgerId, borrowerName.trim(), parsedAmount, ledger?.baseCurrency ?? 'PHP', refNum.trim(), undefined, note.trim());
-      setBorrowerName(''); setAmount(''); setRefNum(''); setNote('');
+      await createLendingRequest(
+        selectedLedgerId, borrowerName.trim(), parsedAmount,
+        ledger?.baseCurrency ?? 'PHP', parsedInterest, trimmedDueDate,
+        parsedPenalty, undefined, note.trim() || undefined
+      );
+      resetForm();
       setModalVisible(false);
       load();
     } catch (error) {
@@ -68,34 +114,47 @@ export default function LendingScreen() {
   };
 
   const handleAction = (req: LendingRequest) => {
-    const runAction = async (status: LendingStatus) => {
-      try {
-        await updateLendingStatus(req.id, status);
-        await load();
-      } catch (error) {
-        Alert.alert('Unable to update request', error instanceof Error ? error.message : 'Please try again.');
-      }
-    };
-
     if (req.status === 'pending_admin_approval') {
       Alert.alert('Action', `Manage request from ${req.borrowerName}`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Approve', onPress: () => runAction('approved') },
-        { text: 'Decline', style: 'destructive', onPress: () => runAction('declined') },
+        { text: 'Approve', onPress: () => runStatusChange(req.id, 'approved') },
+        { text: 'Decline', style: 'destructive', onPress: () => runStatusChange(req.id, 'declined') },
       ]);
     } else if (req.status === 'approved') {
-      Alert.alert('Mark Settled?', `Mark this as settled?`, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Mark Settled', onPress: () => runAction('settled') },
-      ]);
+      setPendingSettleId(req.id);
+      setSettleRefNum('');
+      setSettleModalVisible(true);
     }
+  };
+
+  const runStatusChange = async (id: string, status: LendingStatus, refNum?: string) => {
+    try {
+      await updateLendingStatus(id, status, refNum);
+      await load();
+    } catch (error) {
+      Alert.alert('Unable to update request', error instanceof Error ? error.message : 'Please try again.');
+    }
+  };
+
+  const handleSettle = async () => {
+    setSettleModalVisible(false);
+    await runStatusChange(pendingSettleId, 'settled', settleRefNum);
   };
 
   const selectedLedger = ledgers.find((ledger) => ledger.id === selectedLedgerId);
 
+  const getMonthlyPayment = () => {
+    const amt = parseFloat(amount);
+    const rate = parseFloat(interestRate);
+    if (!isNaN(amt) && amt > 0 && !isNaN(rate) && rate > 0) {
+      return formatAmount(amt * (rate / 100), selectedLedger?.baseCurrency ?? 'PHP');
+    }
+    return null;
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
         <Text style={styles.headerTitle}>{Labels.creditMonitor}</Text>
         <Text style={styles.headerSubtitle}>
           {lendingMetrics.pendingCount} pending · {lendingMetrics.approvedCount} active · {outstandingLabel}
@@ -107,27 +166,46 @@ export default function LendingScreen() {
         keyExtractor={(r) => r.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={<Text style={styles.empty}>No lending requests yet.</Text>}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => handleAction(item)}>
-            <View style={styles.cardTop}>
-              <Text style={styles.borrowerName}>{item.borrowerName}</Text>
-              <View style={[styles.badge, { backgroundColor: STATUS_COLOR[item.status] }]}>
-                <Text style={styles.badgeText}>{STATUS_LABEL[item.status]}</Text>
+        renderItem={({ item }) => {
+          const { daysOverdue, penaltyAmount } = getOverdueInfo(item);
+          const monthlyInterest = item.interestRate > 0
+            ? formatAmount(item.amount * (item.interestRate / 100), item.currency)
+            : null;
+          return (
+            <TouchableOpacity style={styles.card} onPress={() => handleAction(item)}>
+              <View style={styles.cardTop}>
+                <Text style={styles.borrowerName}>{item.borrowerName}</Text>
+                <View style={[styles.badge, { backgroundColor: STATUS_COLOR[item.status] }]}>
+                  <Text style={styles.badgeText}>{STATUS_LABEL[item.status]}</Text>
+                </View>
               </View>
-            </View>
-            <Text style={styles.cardAmount}>{formatAmount(item.amount, item.currency)}</Text>
-            <Text style={styles.cardLedger}>Ledger: {ledgers.find((ledger) => ledger.id === item.ledgerId)?.name ?? 'Unknown'}</Text>
-            {item.referenceNumber ? <Text style={styles.cardRef}>Ref: {item.referenceNumber}</Text> : null}
-            {item.note ? <Text style={styles.cardNote}>{item.note}</Text> : null}
-            <Text style={styles.cardDate}>{item.createdAt.split('T')[0]}</Text>
-          </TouchableOpacity>
-        )}
+              <Text style={styles.cardAmount}>{formatAmount(item.amount, item.currency)}</Text>
+              <Text style={styles.cardLedger}>Ledger: {ledgers.find((l) => l.id === item.ledgerId)?.name ?? 'Unknown'}</Text>
+              <Text style={styles.cardTxn}>TXN: {item.transactionCode || '—'}</Text>
+              {item.interestRate > 0 && (
+                <Text style={styles.cardDetail}>Interest: {item.interestRate}%/mo · Monthly due: {monthlyInterest}</Text>
+              )}
+              {item.dueDate && (
+                <Text style={styles.cardDetail}>Due: {item.dueDate}</Text>
+              )}
+              {daysOverdue > 0 && (
+                <Text style={styles.overdueText}>
+                  Overdue by {daysOverdue} day{daysOverdue !== 1 ? 's' : ''}, Penalty: {formatAmount(penaltyAmount, item.currency)} ({item.penaltyRate}%/day)
+                </Text>
+              )}
+              {item.referenceNumber ? <Text style={styles.cardRef}>Ref: {item.referenceNumber}</Text> : null}
+              {item.note ? <Text style={styles.cardNote}>{item.note}</Text> : null}
+              <Text style={styles.cardDate}>{item.createdAt.split('T')[0]}</Text>
+            </TouchableOpacity>
+          );
+        }}
       />
 
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
+      {/* New Lending Request Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalBox} keyboardShouldPersistTaps="handled">
@@ -143,28 +221,37 @@ export default function LendingScreen() {
                 >
                   <Text style={[styles.ledgerChipText, selectedLedgerId === l.id && { color: '#fff' }]}>{l.name}</Text>
                 </TouchableOpacity>
-                ))}
-              </View>
-              {selectedLedger ? (
-                <Text style={styles.availableBalance}>
-                  Available balance in {selectedLedger.name}: {formatAmount(ledgerBalances[selectedLedger.id] ?? 0, selectedLedger.baseCurrency)}
-                </Text>
-              ) : null}
+              ))}
+            </View>
+            {selectedLedger ? (
+              <Text style={styles.availableBalance}>
+                Available: {formatAmount(ledgerBalances[selectedLedger.id] ?? 0, selectedLedger.baseCurrency)}
+              </Text>
+            ) : null}
 
-            {[
-              { label: 'Borrower Name', value: borrowerName, onChange: setBorrowerName, placeholder: 'Full name' },
-              { label: 'Amount', value: amount, onChange: setAmount, placeholder: '0.00', keyboard: 'decimal-pad' as const },
-              { label: 'Reference Number', value: refNum, onChange: setRefNum, placeholder: 'Optional ref' },
-              { label: 'Note', value: note, onChange: setNote, placeholder: 'Optional note' },
-            ].map((f) => (
-              <View key={f.label}>
-                <Text style={styles.fieldLabel}>{f.label}</Text>
-                <TextInput style={styles.input} placeholder={f.placeholder} value={f.value} onChangeText={f.onChange} keyboardType={f.keyboard} />
-              </View>
-            ))}
+            <Text style={styles.fieldLabel}>Borrower Name</Text>
+            <TextInput style={styles.input} placeholder="Full name" value={borrowerName} onChangeText={setBorrowerName} />
+
+            <Text style={styles.fieldLabel}>Amount</Text>
+            <TextInput style={styles.input} placeholder="0.00" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
+
+            <Text style={styles.fieldLabel}>Monthly Interest Rate (%)</Text>
+            <TextInput style={styles.input} placeholder="e.g. 2 for 2% per month (0 = none)" value={interestRate} onChangeText={setInterestRate} keyboardType="decimal-pad" />
+            {getMonthlyPayment() ? (
+              <Text style={styles.infoHint}>📌 Expected monthly interest: {getMonthlyPayment()}</Text>
+            ) : null}
+
+            <Text style={styles.fieldLabel}>Due Date (YYYY-MM-DD, optional)</Text>
+            <TextInput style={styles.input} placeholder="e.g. 2025-12-31" value={dueDate} onChangeText={setDueDate} />
+
+            <Text style={styles.fieldLabel}>Penalty Rate (% per day after due, optional)</Text>
+            <TextInput style={styles.input} placeholder="e.g. 0.3 for 0.3% daily" value={penaltyRate} onChangeText={setPenaltyRate} keyboardType="decimal-pad" />
+
+            <Text style={styles.fieldLabel}>Note (optional)</Text>
+            <TextInput style={styles.input} placeholder="Optional note" value={note} onChangeText={setNote} />
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => { resetForm(); setModalVisible(false); }}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={handleAdd}>
@@ -174,13 +261,39 @@ export default function LendingScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Settle Modal */}
+      <Modal visible={settleModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.settleBox}>
+            <Text style={styles.modalTitle}>Mark as Settled</Text>
+            <Text style={styles.settleDesc}>Enter the reference number for this settlement (e.g. GCash ref, bank transfer ID).</Text>
+            <Text style={styles.fieldLabel}>Reference Number (optional)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. GC123456789"
+              value={settleRefNum}
+              onChangeText={setSettleRefNum}
+              autoCapitalize="characters"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSettleModalVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.createBtn} onPress={handleSettle}>
+                <Text style={styles.createText}>Confirm Settled</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { backgroundColor: Colors.primary, padding: Spacing.lg, paddingTop: Spacing.xl },
+  header: { backgroundColor: Colors.primary, padding: Spacing.lg },
   headerTitle: { color: '#fff', fontSize: FontSize.xl, fontWeight: 'bold' },
   headerSubtitle: { color: 'rgba(255,255,255,0.82)', fontSize: FontSize.sm, marginTop: 4 },
   list: { padding: Spacing.md, paddingBottom: 100 },
@@ -194,6 +307,9 @@ const styles = StyleSheet.create({
   badgeText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },
   cardAmount: { fontSize: FontSize.xl, fontWeight: 'bold', color: Colors.textPrimary },
   cardLedger: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 4 },
+  cardTxn: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2, fontFamily: 'monospace' },
+  cardDetail: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+  overdueText: { fontSize: FontSize.xs, color: Colors.danger, marginTop: 4, fontWeight: '600' },
   cardRef: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
   cardNote: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2, fontStyle: 'italic' },
   cardDate: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 4 },
@@ -207,8 +323,11 @@ const styles = StyleSheet.create({
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', lineHeight: 32 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, maxHeight: '90%' },
+  settleBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, margin: Spacing.md, borderRadius: Radius.xl },
   modalTitle: { fontSize: FontSize.xl, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: Spacing.sm },
+  settleDesc: { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: Spacing.sm },
   fieldLabel: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textSecondary, marginTop: Spacing.sm, marginBottom: 2 },
+  infoHint: { fontSize: FontSize.xs, color: Colors.primary, marginTop: 2, marginBottom: 2 },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, padding: Spacing.sm, fontSize: FontSize.md, color: Colors.textPrimary },
   ledgerPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.xs },
   ledgerChip: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.full, backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.border },

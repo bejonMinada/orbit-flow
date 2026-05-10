@@ -35,13 +35,17 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 
   const handleAdd = async () => {
     if (!name.trim()) return;
-    await createTrackedItem(
-      trackerId, name.trim(), unit, parseFloat(quantity) || 0,
-      parseFloat(price) || 0, currency, barcode.trim() || undefined
-    );
-    setName(''); setUnit('pcs'); setQuantity('1'); setPrice('0'); setBarcode('');
-    setModalVisible(false);
-    load();
+    try {
+      await createTrackedItem(
+        trackerId, name.trim(), unit, parseFloat(quantity) || 0,
+        parseFloat(price) || 0, currency, barcode.trim() || undefined
+      );
+      setName(''); setUnit('pcs'); setQuantity('1'); setPrice('0'); setBarcode('');
+      setModalVisible(false);
+      load();
+    } catch (error) {
+      Alert.alert('Unable to add item', error instanceof Error ? error.message : 'Please try again.');
+    }
   };
 
   const adjustQty = (item: TrackedItem, delta: number) => {

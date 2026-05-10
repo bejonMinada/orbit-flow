@@ -1,19 +1,20 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
 import { CURRENCIES } from '../../data/currencies';
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const [baseCurrency, setBaseCurrency] = useState('PHP');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
 
   const popularCurrencies = ['PHP', 'USD', 'EUR', 'GBP', 'JPY', 'SGD', 'AUD', 'INR', 'MYR', 'IDR'];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}>
       <Text style={styles.title}>Settings</Text>
 
       <View style={styles.section}>
