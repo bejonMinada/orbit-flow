@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', lineHeight: 32 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   fullScreenModal: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.md },
-  fullScreenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.sm },
+  fullScreenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   fullScreenHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginLeft: Spacing.md },
   headerActionBtn: { minHeight: 34, paddingHorizontal: Spacing.sm, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   headerActionBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '700' },

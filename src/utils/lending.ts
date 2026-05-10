@@ -73,7 +73,7 @@ function getRuleOf78WeightSum(termMonths: number): number {
 
 function getRuleOf78EarnedWeight(elapsedMonths: number, termMonths: number): number {
   if (elapsedMonths <= 0) return 0;
-  const clampedElapsed = Math.min(termMonths, Math.max(0, elapsedMonths));
+  const clampedElapsed = Math.min(termMonths, elapsedMonths);
   return (clampedElapsed * (2 * termMonths - clampedElapsed + 1)) / 2;
 }
 

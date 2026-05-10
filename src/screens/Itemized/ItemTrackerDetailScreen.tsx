@@ -314,6 +314,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
           <Text style={styles.scanBtnText}>Scan</Text>
         </TouchableOpacity>
       </View>
+      <Text style={[styles.longPressHint, isDark && { color: darkMuted }]}>Tip: Long-press an inventory item to edit or delete.</Text>
 
       <FlatList
         data={filteredItems}
@@ -645,6 +646,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   searchBar: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+  longPressHint: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 4, marginHorizontal: Spacing.md },
   searchInput: {
     flex: 1,
     borderWidth: 1,

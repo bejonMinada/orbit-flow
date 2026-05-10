@@ -140,6 +140,7 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
   const chartHeight = 120;
   const chartWidth = 320;
   const graphWidth = Math.max(chartWidth, points.length * 38);
+  const Y_AXIS_OFFSET = 6;
 
   return (
     <View style={chartStyles.trendRow}>
@@ -172,14 +173,14 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
                       chartStyles.lineSegment,
                       {
                         width: distance,
-                        left: ((prevX + x) / 2) + 6 - (distance / 2),
+                        left: ((prevX + x) / 2) + Y_AXIS_OFFSET - (distance / 2),
                         top: ((prevY + y) / 2) + 10 - 1,
                         transform: [{ rotate: `${angle}deg` }],
                       },
-                  ]}
-                />
-              )}
-              <View style={[chartStyles.point, { left: x + 6, top: y + 6 }]} />
+                    ]}
+                  />
+                )}
+              <View style={[chartStyles.point, { left: x + Y_AXIS_OFFSET, top: y + Y_AXIS_OFFSET }]} />
               <Text style={[chartStyles.pointLabel, { left: x, top: chartHeight + 16 }]} numberOfLines={1}>
                 {point.label}
               </Text>
