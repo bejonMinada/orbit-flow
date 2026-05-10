@@ -95,7 +95,7 @@ function getPrincipalPaid(payments: LendingPayment[]): number {
 }
 
 function getInterestPaid(payments: LendingPayment[]): number {
-  return payments.reduce((sum, payment) => sum + payment.appliedInterest + payment.cashbackAmount, 0);
+  return payments.reduce((sum, payment) => sum + payment.appliedInterest, 0);
 }
 
 function getPenaltyPaid(payments: LendingPayment[]): number {

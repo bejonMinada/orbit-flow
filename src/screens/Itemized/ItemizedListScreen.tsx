@@ -8,7 +8,9 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   Colors, Spacing, Radius, FontSize, Labels,
 } from '../../constants';
-import { getItemTrackers, createItemTracker, deleteItemTracker } from '../../repositories/itemRepository';
+import {
+  getItemTrackers, createItemTracker, deleteItemTracker, updateItemTrackerName,
+} from '../../repositories/itemRepository';
 import { ItemTracker } from '../../types';
 import { ItemizedStackParamList } from '../../navigation/ItemizedNavigator';
 import { useThemeMode } from '../../theme/ThemeContext';
@@ -27,6 +29,9 @@ export default function ItemizedListScreen({ navigation }: Props) {
   const [trackers, setTrackers] = useState<ItemTracker[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameName, setRenameName] = useState('');
 
   const load = useCallback(async () => {
     const ts = await getItemTrackers();
@@ -48,9 +53,36 @@ export default function ItemizedListScreen({ navigation }: Props) {
   };
 
   const handleDelete = (id: string, name: string) => {
-      Alert.alert('Delete Inventory', `Delete "${name}" and all its items?`, [
+    Alert.alert('Delete Inventory', `Delete "${name}" and all its items?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => { await deleteItemTracker(id); load(); } },
+    ]);
+  };
+
+  const openRename = (id: string, name: string) => {
+    setRenameId(id);
+    setRenameName(name);
+    setRenameModalVisible(true);
+  };
+
+  const handleRename = async () => {
+    if (!renameId || !renameName.trim()) return;
+    try {
+      await updateItemTrackerName(renameId, renameName.trim());
+      setRenameModalVisible(false);
+      setRenameId(null);
+      setRenameName('');
+      await load();
+    } catch (error) {
+      Alert.alert('Unable to rename inventory', error instanceof Error ? error.message : 'Please try again.');
+    }
+  };
+
+  const openTrackerActions = (id: string, name: string) => {
+    Alert.alert(name, 'Choose an action', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Rename', onPress: () => openRename(id, name) },
+      { text: 'Delete', style: 'destructive', onPress: () => handleDelete(id, name) },
     ]);
   };
 
@@ -70,7 +102,7 @@ export default function ItemizedListScreen({ navigation }: Props) {
           <TouchableOpacity
             style={[styles.card, isDark && { backgroundColor: darkSurface }]}
             onPress={() => navigation.navigate('ItemTrackerDetail', { trackerId: item.id, trackerName: item.name })}
-            onLongPress={() => handleDelete(item.id, item.name)}
+            onLongPress={() => openTrackerActions(item.id, item.name)}
           >
             <Text style={[styles.cardName, isDark && { color: darkText }]}>{item.name}</Text>
             <Text style={[styles.cardCount, isDark && { color: darkMuted }]}>{item.items.length} item{item.items.length !== 1 ? 's' : ''}</Text>
@@ -93,6 +125,23 @@ export default function ItemizedListScreen({ navigation }: Props) {
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={handleAdd}>
                 <Text style={styles.createText}>Create</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={renameModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Rename Inventory</Text>
+            <TextInput style={styles.input} placeholder="Inventory name" value={renameName} onChangeText={setRenameName} />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setRenameModalVisible(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.createBtn} onPress={handleRename}>
+                <Text style={styles.createText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
