@@ -100,7 +100,8 @@ export function computeLendingBreakdown(
   const principalRemaining = Math.max(0, request.amount - principalPaid);
   const start = getLoanStartDate(request);
   const firstDue = getFirstDueDate(request);
-  const elapsedMonthsRaw = getDayDiff(start, asOf) > 0 ? Math.floor(getDayDiff(start, asOf) / 30) : 0;
+  const daysSinceStart = getDayDiff(start, asOf);
+  const elapsedMonthsRaw = daysSinceStart > 0 ? Math.floor(daysSinceStart / 30) : 0;
   const elapsedMonths = Math.min(termMonths, Math.max(0, elapsedMonthsRaw));
   const accruedInterestGross = monthlyInterest * elapsedMonths;
   const accruedInterest = Math.max(0, accruedInterestGross - interestPaid);

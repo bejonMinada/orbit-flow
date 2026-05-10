@@ -4,6 +4,8 @@ import { LendingPayment, LendingRequest, LendingStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { computeLendingBreakdown } from '../utils/lending';
 
+const SETTLEMENT_THRESHOLD = 0.009;
+
 function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -309,7 +311,7 @@ export async function recordLendingPayment(
 
     const updatedPayments = await getLendingPayments(lendingRequestId);
     const updatedBreakdown = computeLendingBreakdown(request, updatedPayments);
-    const nextStatus: LendingStatus = updatedBreakdown.outstanding <= 0.009 ? 'settled' : 'approved';
+    const nextStatus: LendingStatus = updatedBreakdown.outstanding <= SETTLEMENT_THRESHOLD ? 'settled' : 'approved';
     await db.runAsync(
       'UPDATE lending_requests SET status = ?, reference_number = ?, updated_at = ? WHERE id = ?',
       [nextStatus, ref || request.referenceNumber, now, lendingRequestId]
