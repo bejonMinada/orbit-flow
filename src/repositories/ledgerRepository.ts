@@ -128,7 +128,7 @@ export async function getDashboardChartData(currency: string = 'PHP'): Promise<{
 }> {
   const db = getDb();
   const safeCurrency = normalizeCurrencyCode(currency);
-  const [incomeRow, expensesRow, incomeCategoryRows, expenseCategoryRows] = await Promise.all([
+  const [incomeRow, expensesRow, incomeCategoryRows, expenseCategoryRows, checklistRow] = await Promise.all([
     db.getFirstAsync<{ total: number }>(
       "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_in' AND currency = ?",
       [safeCurrency]
@@ -145,15 +145,35 @@ export async function getDashboardChartData(currency: string = 'PHP'): Promise<{
       "SELECT category_id, COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_out' AND currency = ? GROUP BY category_id ORDER BY total DESC LIMIT 6",
       [safeCurrency]
     ),
+    db.getFirstAsync<{ total: number }>(
+      `SELECT COALESCE(SUM(ssi.planned_quantity * ti.last_price), 0) as total
+         FROM shopping_session_items ssi
+         JOIN tracked_items ti ON ti.id = ssi.tracked_item_id
+        WHERE ssi.status = 'purchased'`,
+    ),
   ]);
   const totalIncome = incomeRow?.total ?? 0;
-  const totalExpenses = expensesRow?.total ?? 0;
+  const checklistExpenses = checklistRow?.total ?? 0;
+  const totalExpenses = (expensesRow?.total ?? 0) + checklistExpenses;
+  const mergedExpenseRows = [...expenseCategoryRows];
+  if (checklistExpenses > 0) {
+    const otherIdx = mergedExpenseRows.findIndex((row) => row.category_id === 'cat_other');
+    if (otherIdx >= 0) {
+      mergedExpenseRows[otherIdx] = {
+        category_id: 'cat_other',
+        total: mergedExpenseRows[otherIdx].total + checklistExpenses,
+      };
+    } else {
+      mergedExpenseRows.push({ category_id: 'cat_other', total: checklistExpenses });
+    }
+    mergedExpenseRows.sort((a, b) => b.total - a.total);
+  }
   return {
     totalIncome,
     totalExpenses,
     netBalance: totalIncome - totalExpenses,
     incomeCategoryBreakdown: incomeCategoryRows.map((r) => ({ categoryId: r.category_id, total: r.total })),
-    expenseCategoryBreakdown: expenseCategoryRows.map((r) => ({ categoryId: r.category_id, total: r.total })),
+    expenseCategoryBreakdown: mergedExpenseRows.slice(0, 6).map((r) => ({ categoryId: r.category_id, total: r.total })),
   };
 }
 

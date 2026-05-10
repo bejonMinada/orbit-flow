@@ -237,3 +237,42 @@ export async function updateShoppingSessionItem(
     [status, alternativeItemName?.trim() || null, now, sessionItemId]
   );
 }
+
+export async function updateShoppingSessionItemDetails(
+  sessionItemId: string,
+  updates: {
+    itemName: string;
+    unit: string;
+    plannedQuantity: number;
+    alternativeItemName?: string;
+  }
+): Promise<void> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `UPDATE shopping_session_items
+      SET item_name = ?, unit = ?, planned_quantity = ?, alternative_item_name = ?, updated_at = ?
+      WHERE id = ?`,
+    [
+      updates.itemName.trim(),
+      updates.unit.trim() || 'pcs',
+      Math.max(0, updates.plannedQuantity),
+      updates.alternativeItemName?.trim() || null,
+      now,
+      sessionItemId,
+    ]
+  );
+}
+
+export async function deleteShoppingSessionItem(sessionItemId: string): Promise<void> {
+  const db = getDb();
+  await db.runAsync('DELETE FROM shopping_session_items WHERE id = ?', [sessionItemId]);
+}
+
+export async function deleteShoppingSession(sessionId: string): Promise<void> {
+  const db = getDb();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM shopping_session_items WHERE session_id = ?', [sessionId]);
+    await db.runAsync('DELETE FROM shopping_sessions WHERE id = ?', [sessionId]);
+  });
+}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl,
 } from 'react-native';
@@ -128,6 +128,7 @@ function CategoryBars({ breakdown, maxAmount, currency }: { breakdown: { categor
 }
 
 function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: string }) {
+  const scrollRef = useRef<ScrollView | null>(null);
   if (points.length === 0) {
     return <Text style={chartStyles.emptyText}>No trend data yet</Text>;
   }
@@ -140,7 +141,12 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
   const chartWidth = 320;
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+    >
       <View style={{ width: Math.max(chartWidth, points.length * 38), height: chartHeight + 40 }}>
         {points.map((point, index) => {
           const x = points.length === 1 ? 0 : (index / (points.length - 1)) * (Math.max(chartWidth, points.length * 38) - 20);
@@ -186,6 +192,9 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [ledgerBalances, setLedgerBalances] = useState<Record<string, number>>({});
   const [lendingRequests, setLendingRequests] = useState<LendingRequest[]>([]);
@@ -239,11 +248,12 @@ export default function HomeScreen() {
   const outstandingLabel = useMemo(() => formatLendingOutstanding(lendingRequests), [lendingRequests]);
   const maxIncomeCategoryAmount = chartData.incomeCategoryBreakdown.length > 0 ? chartData.incomeCategoryBreakdown[0].total : 0;
   const maxExpenseCategoryAmount = chartData.expenseCategoryBreakdown.length > 0 ? chartData.expenseCategoryBreakdown[0].total : 0;
+  const netCardColor = totalBalance < 0 ? Colors.danger : totalBalance === 0 ? Colors.settled : Colors.primary;
 
   return (
     <ScrollView
       style={[styles.container, isDark && { backgroundColor: '#12161D' }]}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.sm }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.sm, paddingBottom: insets.bottom + Spacing.xxl }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={isDark ? '#E6E9EE' : Colors.primary} />}
     >
       <View style={styles.header}>
@@ -253,44 +263,44 @@ export default function HomeScreen() {
           </View>
           <View>
             <Text style={styles.appName}>{Labels.appName}</Text>
-            <Text style={styles.subtitle}>Dashboard</Text>
           </View>
         </View>
-        <Text style={styles.headerNote}>Track what is truly saved, spent, and owed with a net-first view.</Text>
+        <Text style={[styles.subtitle, isDark && { color: darkMuted }]}>Dashboard</Text>
+        <Text style={[styles.headerNote, isDark && { color: darkMuted }]}>Track what is truly saved, spent, and owed with a net-first view.</Text>
       </View>
 
       <View style={styles.statsGrid}>
-        <View style={[styles.statCard, styles.primaryCard]}>
+        <View style={[styles.statCard, styles.primaryCard, { backgroundColor: netCardColor }]}>
           <Text style={styles.balanceLabel}>Net Balance</Text>
           <Text style={styles.balanceAmount}>{formatAmount(totalBalance, baseCurrency)}</Text>
-          <Text style={styles.ledgerCount}>{ledgers.length} Cash Ledger{ledgers.length !== 1 ? 's' : ''}</Text>
+          <Text style={styles.ledgerCount}>{totalBalance === 0 ? 'Dormant / unset account' : `${ledgers.length} Cash Ledger${ledgers.length !== 1 ? 's' : ''}`}</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Tracked Items</Text>
-          <Text style={styles.statValue}>{trackedItemCount}</Text>
-          <Text style={styles.statHint}>{trackerCount} inventory list{trackerCount !== 1 ? 's' : ''} active</Text>
+        <View style={[styles.statCard, isDark && { backgroundColor: darkSurface }]}>
+          <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Tracked Items</Text>
+          <Text style={[styles.statValue, isDark && { color: darkText }]}>{trackedItemCount}</Text>
+          <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{trackerCount} inventory list{trackerCount !== 1 ? 's' : ''} active</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Pending Settlements</Text>
-          <Text style={styles.statValue}>{lendingMetrics.pendingCount}</Text>
-          <Text style={styles.statHint}>{lendingMetrics.approvedCount} active request{lendingMetrics.approvedCount !== 1 ? 's' : ''}</Text>
+        <View style={[styles.statCard, isDark && { backgroundColor: darkSurface }]}>
+          <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Pending Settlements</Text>
+          <Text style={[styles.statValue, isDark && { color: darkText }]}>{lendingMetrics.pendingCount}</Text>
+          <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{lendingMetrics.approvedCount} active request{lendingMetrics.approvedCount !== 1 ? 's' : ''}</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Outstanding Net Owed</Text>
-          <Text style={styles.statValueSmall}>{outstandingLabel}</Text>
-          <Text style={styles.statHint}>{lendingMetrics.settledCount} settled request{lendingMetrics.settledCount !== 1 ? 's' : ''}</Text>
+        <View style={[styles.statCard, isDark && { backgroundColor: darkSurface }]}>
+          <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Outstanding Net Owed</Text>
+          <Text style={[styles.statValueSmall, isDark && { color: darkText }]}>{outstandingLabel}</Text>
+          <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{lendingMetrics.settledCount} settled request{lendingMetrics.settledCount !== 1 ? 's' : ''}</Text>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Net Result</Text>
-      <View style={styles.chartCard}>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Net Result</Text>
+      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
         <View style={styles.chartAmounts}>
           <View>
             <Text style={styles.chartAmountLabel}>Calculated Net</Text>
             <Text
               style={[
                 styles.chartAmount,
-                { color: chartData.netBalance >= 0 ? Colors.cashIn : Colors.cashOut },
+                { color: chartData.netBalance > 0 ? Colors.cashIn : chartData.netBalance < 0 ? Colors.cashOut : Colors.settled },
               ]}
             >
               {formatAmount(chartData.netBalance, baseCurrency)}
@@ -299,8 +309,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Income vs Expenses</Text>
-      <View style={styles.chartCard}>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Income vs Expenses</Text>
+      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
         <View style={styles.chartAmounts}>
           <View>
             <Text style={styles.chartAmountLabel}>Total Income</Text>
@@ -314,13 +324,13 @@ export default function HomeScreen() {
         <IncomeExpenseBar income={chartData.totalIncome} expenses={chartData.totalExpenses} />
       </View>
 
-      <Text style={styles.sectionTitle}>Savings Overview</Text>
-      <View style={styles.chartCard}>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Savings Overview</Text>
+      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
         <SavingsBar income={chartData.totalIncome} expenses={chartData.totalExpenses} currency={baseCurrency} />
       </View>
 
-      <Text style={styles.sectionTitle}>Net Cash Trend</Text>
-      <View style={styles.chartCard}>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Net Cash Trend</Text>
+      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
         <View style={styles.rangeRow}>
           {(['daily', 'weekly', 'monthly', 'annual'] as TrendRange[]).map((range) => (
             <TouchableOpacity
@@ -335,17 +345,17 @@ export default function HomeScreen() {
         <NetTrendLine points={trendPoints} currency={baseCurrency} />
       </View>
 
-      <Text style={styles.sectionTitle}>Top Savings Categories</Text>
-      <View style={styles.chartCard}>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Top Savings Categories</Text>
+      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
         <CategoryBars breakdown={chartData.incomeCategoryBreakdown} maxAmount={maxIncomeCategoryAmount} currency={baseCurrency} />
       </View>
 
-      <Text style={styles.sectionTitle}>Top Spending Categories</Text>
-      <View style={styles.chartCard}>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Top Spending Categories</Text>
+      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
         <CategoryBars breakdown={chartData.expenseCategoryBreakdown} maxAmount={maxExpenseCategoryAmount} currency={baseCurrency} />
       </View>
 
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Quick Actions</Text>
       <View style={styles.quickActions}>
         {[
           { label: 'Cash Ledgers', route: 'Ledgers' as const },
@@ -355,24 +365,24 @@ export default function HomeScreen() {
         ].map((a) => (
           <TouchableOpacity
             key={a.label}
-            style={styles.quickAction}
+            style={[styles.quickAction, isDark && { backgroundColor: darkSurface }]}
             activeOpacity={0.86}
             onPress={() => navigation.navigate(a.route)}
           >
-            <Text style={styles.quickLabel}>{a.label}</Text>
+            <Text style={[styles.quickLabel, isDark && { color: darkText }]}>{a.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.sectionTitle}>Recent Ledgers</Text>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Recent Ledgers</Text>
       {ledgers.length === 0 ? (
-        <Text style={styles.empty}>No ledgers yet. Go to Cash Ledgers to add one.</Text>
+        <Text style={[styles.empty, isDark && { color: darkMuted }]}>No ledgers yet. Go to Cash Ledgers to add one.</Text>
       ) : (
         ledgers.slice(0, 3).map((l) => (
-          <View key={l.id} style={styles.ledgerCard}>
+          <View key={l.id} style={[styles.ledgerCard, isDark && { backgroundColor: darkSurface }]}>
             <View>
-              <Text style={styles.ledgerName}>{l.name}</Text>
-              <Text style={styles.ledgerCurrency}>{l.baseCurrency}</Text>
+              <Text style={[styles.ledgerName, isDark && { color: darkText }]}>{l.name}</Text>
+              <Text style={[styles.ledgerCurrency, isDark && { color: darkMuted }]}>{l.baseCurrency}</Text>
             </View>
             <Text style={[styles.ledgerBalance, { color: (ledgerBalances[l.id] ?? 0) >= 0 ? Colors.cashIn : Colors.cashOut }]}>
               {formatAmount(ledgerBalances[l.id] ?? 0, l.baseCurrency)}
@@ -381,20 +391,20 @@ export default function HomeScreen() {
         ))
       )}
 
-      <Text style={styles.sectionTitle}>Settlement Snapshot</Text>
+      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Settlement Snapshot</Text>
       {lendingRequests.length === 0 ? (
-        <Text style={styles.empty}>No lending requests yet.</Text>
+        <Text style={[styles.empty, isDark && { color: darkMuted }]}>No lending requests yet.</Text>
       ) : (
         lendingRequests.slice(0, 4).map((request) => (
-          <TouchableOpacity key={request.id} style={styles.lendingCard} activeOpacity={0.86} onPress={() => navigation.navigate('Lending')}>
+          <TouchableOpacity key={request.id} style={[styles.lendingCard, isDark && { backgroundColor: darkSurface }]} activeOpacity={0.86} onPress={() => navigation.navigate('Lending')}>
             <View style={styles.lendingTop}>
-              <Text style={styles.lendingName}>{request.borrowerName}</Text>
+              <Text style={[styles.lendingName, isDark && { color: darkText }]}>{request.borrowerName}</Text>
               <Text style={[styles.lendingStatus, STATUS_STYLE[request.status]]}>
                 {STATUS_LABEL[request.status]}
               </Text>
             </View>
-            <Text style={styles.lendingAmount}>{formatAmount(request.amount, request.currency)}</Text>
-            <Text style={styles.lendingMeta}>{request.createdAt.split('T')[0]}</Text>
+            <Text style={[styles.lendingAmount, isDark && { color: darkText }]}>{formatAmount(request.amount, request.currency)}</Text>
+            <Text style={[styles.lendingMeta, isDark && { color: darkMuted }]}>{request.createdAt.split('T')[0]}</Text>
           </TouchableOpacity>
         ))
       )}
