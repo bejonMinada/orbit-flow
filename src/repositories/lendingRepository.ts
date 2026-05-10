@@ -161,7 +161,7 @@ async function insertCashbackLedgerEntry(
       amount,
       currency,
       'cat_lending',
-      `Interest cashback returned to ${borrowerName} (TXN: ${transactionCode})`,
+      `Cashback returned to ${borrowerName} (TXN: ${transactionCode})`,
       occurredAt,
       'local',
       occurredAt,

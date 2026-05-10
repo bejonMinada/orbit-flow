@@ -33,6 +33,7 @@ import { useThemeMode } from '../../theme/ThemeContext';
 type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemTrackerDetail'>;
 const MIN_LIST_BOTTOM_PADDING = 120;
 const FAB_CLEARANCE = 92;
+const PINNED_CHECKLIST_RIGHT_OFFSET = 86;
 
 export default function ItemTrackerDetailScreen({ route }: Props) {
   const insets = useSafeAreaInsets();
@@ -678,7 +679,7 @@ const styles = StyleSheet.create({
   pinnedChecklistSection: {
     position: 'absolute',
     left: Spacing.md,
-    right: 86,
+    right: PINNED_CHECKLIST_RIGHT_OFFSET,
     borderRadius: Radius.md,
     backgroundColor: Colors.surface,
     borderWidth: 1,
