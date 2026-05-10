@@ -25,7 +25,8 @@
           "cameraPermission": "Allow Netto to use your camera for barcode and QR scanning."
         }
       ],
-      "expo-image-picker"
+      "expo-image-picker",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

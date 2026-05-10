@@ -53,7 +53,7 @@ export const Labels = {
   itemizedTrackers: 'Itemized Inventories',
   trackedItems: 'Tracked Items',
   creditMonitor: 'Settlement Hub',
-  borrower: 'Borrower',
+  borrower: 'Borrower\'s Name',
   sharedPools: 'Group Contributions',
   paymentProfiles: 'Payment Profiles',
   cashIn: 'Cash In',
