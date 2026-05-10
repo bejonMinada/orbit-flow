@@ -2,8 +2,9 @@ import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
 import {
   getLedgers, getLedgerBalance, getDashboardChartData, getNetTrendData, TrendRange,
@@ -12,6 +13,7 @@ import { getLendingRequests } from '../../repositories/lendingRepository';
 import { getItemTrackers } from '../../repositories/itemRepository';
 import { formatAmount } from '../../data/currencies';
 import { Ledger, LendingRequest } from '../../types';
+import { RootTabParamList } from '../../navigation/BottomTabNavigator';
 import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
 import { SYSTEM_CATEGORIES } from '../../data/categories';
 import AscendingNLogo from '../../components/AscendingNLogo';
@@ -166,6 +168,7 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
 }
 
 export default function HomeScreen() {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const insets = useSafeAreaInsets();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
