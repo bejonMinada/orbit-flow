@@ -158,28 +158,28 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
         <View style={{ width: graphWidth, height: chartHeight + 40 }}>
           <View style={[chartStyles.zeroLine, { top: zeroY }]} />
           {points.map((point, index) => {
-            const x = points.length === 1 ? 0 : (index / (points.length - 1)) * (graphWidth - 24);
-            const y = ((maxValue - point.netAmount) / range) * chartHeight;
-            const barHeight = Math.max(2, Math.abs(zeroY - y));
-            const barTop = point.netAmount >= 0 ? y : zeroY;
+            const barXPosition = points.length === 1 ? 0 : (index / (points.length - 1)) * (graphWidth - 24);
+            const barYPosition = ((maxValue - point.netAmount) / range) * chartHeight;
+            const barHeight = Math.max(2, Math.abs(zeroY - barYPosition));
+            const barTop = point.netAmount >= 0 ? barYPosition : zeroY;
             return (
               <View key={`${point.label}_${index}`}>
-              <View
-                style={[
-                  chartStyles.trendBar,
-                  {
-                    left: x + 6,
-                    top: barTop,
-                    height: barHeight,
-                    backgroundColor: point.netAmount >= 0 ? Colors.cashIn : Colors.cashOut,
-                  },
-                ]}
-              />
-              <Text style={[chartStyles.pointLabel, { left: x - 2, top: chartHeight + 16 }]} numberOfLines={1}>
-                {point.label}
-              </Text>
-            </View>
-          );
+                <View
+                  style={[
+                    chartStyles.trendBar,
+                    {
+                      left: barXPosition + 6,
+                      top: barTop,
+                      height: barHeight,
+                      backgroundColor: point.netAmount >= 0 ? Colors.cashIn : Colors.cashOut,
+                    },
+                  ]}
+                />
+                <Text style={[chartStyles.pointLabel, { left: barXPosition - 2, top: chartHeight + 16 }]} numberOfLines={1}>
+                  {point.label}
+                </Text>
+              </View>
+            );
           })}
         </View>
       </ScrollView>

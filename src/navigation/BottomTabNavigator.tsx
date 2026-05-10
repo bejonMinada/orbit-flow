@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../constants';
+import { AppMeta, Colors } from '../constants';
 import HomeScreen from '../screens/Home/HomeScreen';
 import LedgersNavigator from './LedgersNavigator';
 import ItemizedNavigator from './ItemizedNavigator';
@@ -19,7 +19,8 @@ export type RootTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
-const APP_VERSION = 'v1.0.0';
+const APP_VERSION = `v${AppMeta.version}`;
+const TAB_LABEL_BOTTOM_PADDING = 33;
 
 export default function BottomTabNavigator() {
   const { mode } = useThemeMode();
@@ -38,7 +39,7 @@ export default function BottomTabNavigator() {
           paddingTop: 0,
         },
         tabBarLabelStyle: { fontWeight: '600' },
-        tabBarItemStyle: { justifyContent: 'flex-start', paddingTop: 4, paddingBottom: 33 },
+        tabBarItemStyle: { justifyContent: 'flex-start', paddingTop: 4, paddingBottom: TAB_LABEL_BOTTOM_PADDING },
         tabBarShowLabel: true,
         tabBarIcon: () => null,
         tabBarBackground: () => (

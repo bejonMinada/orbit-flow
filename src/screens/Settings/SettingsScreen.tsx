@@ -4,7 +4,9 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Spacing, Radius, FontSize, Labels, SyncConstants } from '../../constants';
+import {
+  Colors, Spacing, Radius, FontSize, Labels, SyncConstants, AppMeta,
+} from '../../constants';
 import { CURRENCIES } from '../../data/currencies';
 import { useThemeMode } from '../../theme/ThemeContext';
 import CurrencyDropdown from '../../components/CurrencyDropdown';
@@ -137,11 +139,11 @@ export default function SettingsScreen() {
         </View>
         <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Version</Text>
-          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>1.0.0 (Phase 1 MVP)</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{AppMeta.version} (Phase 1 MVP)</Text>
         </View>
         <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Schema Version</Text>
-          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>1.0.0</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{AppMeta.schemaVersion}</Text>
         </View>
         <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Currencies</Text>
