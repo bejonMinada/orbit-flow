@@ -34,6 +34,7 @@ type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemTrackerDetail'>
 const MIN_LIST_BOTTOM_PADDING = 120;
 const FAB_CLEARANCE = 92;
 const FAB_SIZE = 56;
+const SHOPPING_PANEL_HEIGHT = FAB_SIZE;
 
 export default function ItemTrackerDetailScreen({ route }: Props) {
   const insets = useSafeAreaInsets();
@@ -278,6 +279,10 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     }
     return totals;
   }, [sessions, sessionItemsBySession, items]);
+  const shoppingListLabel = useMemo(
+    () => (sessions.length > 0 ? `Shopping List (${sessions.length})` : 'Shopping List'),
+    [sessions.length]
+  );
 
   const openTrackedItemEditor = (item: TrackedItem) => {
     setTrackedItemToEdit(item);
@@ -368,9 +373,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       />
 
       <View style={[styles.pinnedChecklistSection, isDark && { backgroundColor: darkSurface }, pinnedChecklistStyle]}>
-        <Text style={[styles.checklistTitle, isDark && { color: darkText }]}>
-          Shopping List {sessions.length > 0 ? `(${sessions.length})` : ''}
-        </Text>
+        <Text style={[styles.checklistTitle, isDark && { color: darkText }]}>{shoppingListLabel}</Text>
         <View style={styles.checklistActions}>
           <TouchableOpacity style={styles.generateBtn} onPress={generateChecklist}>
             <Text style={styles.generateBtnText}>Generate</Text>
@@ -693,7 +696,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    height: FAB_SIZE,
+    height: SHOPPING_PANEL_HEIGHT,
     paddingHorizontal: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
