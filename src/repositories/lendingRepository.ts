@@ -4,6 +4,7 @@ import { LendingPayment, LendingRequest, LendingStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { computeLendingBreakdown } from '../utils/lending';
 
+// Rounding tolerance for floating-point math when deciding if a loan is fully settled.
 const SETTLEMENT_THRESHOLD = 0.009;
 
 function newId(prefix: string): string {
@@ -260,18 +261,16 @@ export async function recordLendingPayment(
   if (breakdown.outstanding <= 0) throw new Error('This lending request is already fully paid.');
 
   const paymentAmount = Math.min(amountPaid, breakdown.outstanding);
-  let principalAllocation = Math.min(paymentAmount, breakdown.principalRemaining);
-  let remaining = paymentAmount - principalAllocation;
-  let interestAllocation = Math.min(remaining, breakdown.accruedInterest);
-  remaining -= interestAllocation;
-  let penaltyAllocation = Math.min(remaining, breakdown.penalties);
-  remaining -= penaltyAllocation;
+  const principalAllocation = Math.min(paymentAmount, breakdown.principalRemaining);
+  const afterPrincipal = paymentAmount - principalAllocation;
+  const interestAllocation = Math.min(afterPrincipal, breakdown.accruedInterest);
+  const afterInterest = afterPrincipal - interestAllocation;
+  const penaltyAllocation = Math.min(afterInterest, breakdown.penalties);
 
   let cashbackAllocation = 0;
   const isEarlyFullPrincipalPayment = principalAllocation >= breakdown.principalRemaining && breakdown.cashbackIfPaidInFull > 0;
   if (isEarlyFullPrincipalPayment) {
     cashbackAllocation = Math.min(breakdown.cashbackIfPaidInFull, breakdown.futureInterest);
-    interestAllocation += Math.min(remaining, breakdown.futureInterest - cashbackAllocation);
   }
 
   const now = new Date().toISOString();

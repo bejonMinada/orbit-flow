@@ -58,6 +58,15 @@ function getDayDiff(start: Date, end: Date): number {
   return Math.max(0, Math.floor((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
+function getElapsedCalendarMonths(start: Date, end: Date): number {
+  if (end <= start) return 0;
+  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  if (end.getDate() < start.getDate()) {
+    months -= 1;
+  }
+  return Math.max(0, months);
+}
+
 function getLoanStartDate(request: LendingRequest): Date {
   return new Date(request.approvedAt ?? request.createdAt);
 }
@@ -100,8 +109,7 @@ export function computeLendingBreakdown(
   const principalRemaining = Math.max(0, request.amount - principalPaid);
   const start = getLoanStartDate(request);
   const firstDue = getFirstDueDate(request);
-  const daysSinceStart = getDayDiff(start, asOf);
-  const elapsedMonthsRaw = daysSinceStart > 0 ? Math.floor(daysSinceStart / 30) : 0;
+  const elapsedMonthsRaw = getElapsedCalendarMonths(start, asOf);
   const elapsedMonths = Math.min(termMonths, Math.max(0, elapsedMonthsRaw));
   const accruedInterestGross = monthlyInterest * elapsedMonths;
   const accruedInterest = Math.max(0, accruedInterestGross - interestPaid);
