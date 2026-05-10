@@ -10,9 +10,6 @@
       "bundleIdentifier": "com.bejonminada.orbitflow"
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#1A1A2E"
-      },
       "package": "com.bejonminada.orbitflow",
       "permissions": [
         "CAMERA",
