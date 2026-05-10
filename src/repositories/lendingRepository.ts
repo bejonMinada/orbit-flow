@@ -1,11 +1,13 @@
 import { getDb } from '../db/database';
-import { formatAmount, normalizeCurrencyCode } from '../data/currencies';
+import { formatAmount, getCurrency, normalizeCurrencyCode } from '../data/currencies';
 import { LendingPayment, LendingRequest, LendingStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { computeLendingBreakdown } from '../utils/lending';
 
-// Rounding tolerance for floating-point math when deciding if a loan is fully settled.
-const SETTLEMENT_THRESHOLD = 0.009;
+function getSettlementThreshold(currency: string): number {
+  const minorUnits = getCurrency(currency)?.minorUnits ?? 2;
+  return 1 / (10 ** minorUnits);
+}
 
 function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -310,7 +312,8 @@ export async function recordLendingPayment(
 
     const updatedPayments = await getLendingPayments(lendingRequestId);
     const updatedBreakdown = computeLendingBreakdown(request, updatedPayments);
-    const nextStatus: LendingStatus = updatedBreakdown.outstanding <= SETTLEMENT_THRESHOLD ? 'settled' : 'approved';
+    const nextStatus: LendingStatus =
+      updatedBreakdown.outstanding <= getSettlementThreshold(request.currency) ? 'settled' : 'approved';
     await db.runAsync(
       'UPDATE lending_requests SET status = ?, reference_number = ?, updated_at = ? WHERE id = ?',
       [nextStatus, ref || request.referenceNumber, now, lendingRequestId]
@@ -357,7 +360,14 @@ export async function updateLendingStatus(id: string, status: LendingStatus, ref
     }
     const payments = await getLendingPayments(id);
     const breakdown = computeLendingBreakdown(request, payments);
-    await recordLendingPayment(id, breakdown.outstanding, referenceNumber, 'Marked settled with full payment');
+    if (breakdown.outstanding <= getSettlementThreshold(request.currency)) {
+      await db.runAsync(
+        'UPDATE lending_requests SET status = ?, updated_at = ? WHERE id = ?',
+        ['settled', now, id]
+      );
+      return;
+    }
+    await recordLendingPayment(id, breakdown.outstanding, referenceNumber, 'Settlement completion payment');
     return;
   }
 

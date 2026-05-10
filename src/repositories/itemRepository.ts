@@ -3,9 +3,11 @@ import {
   ItemTracker, TrackedItem, PriceRecord, ShoppingSession, ShoppingSessionItem, ShoppingItemStatus,
 } from '../types';
 import { normalizeCurrencyCode } from '../data/currencies';
+import { v4 as uuidv4 } from 'uuid';
 
 function newId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const raw = uuidv4().replace(/-/g, '').slice(0, 10);
+  return `${prefix}_${Date.now()}_${raw}`;
 }
 
 export async function getItemTrackers(): Promise<ItemTracker[]> {

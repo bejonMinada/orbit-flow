@@ -303,7 +303,7 @@ export default function LendingScreen() {
               </View>
               <Text style={styles.cardAmount}>{formatAmount(item.amount, item.currency)}</Text>
               <Text style={styles.cardLedger}>Cash Ledger: {ledgers.find((l) => l.id === item.ledgerId)?.name ?? 'Unknown'}</Text>
-              <Text style={styles.cardTxn}>TXN: {item.transactionCode || '-'}</Text>
+              <Text style={styles.cardTxn}>TXN: {item.transactionCode || '—'}</Text>
               <Text style={styles.cardDetail}>Term: {item.termMonths} month{item.termMonths > 1 ? 's' : ''}</Text>
               <Text style={styles.cardDetail}>Monthly due: {formatAmount(breakdown.monthlyDue, item.currency)}</Text>
               <Text style={styles.cardDetail}>Outstanding: {formatAmount(breakdown.outstanding, item.currency)}</Text>

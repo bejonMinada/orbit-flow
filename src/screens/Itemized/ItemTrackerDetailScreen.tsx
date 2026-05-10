@@ -242,7 +242,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
             </View>
             <View style={styles.qtyControl}>
               <TouchableOpacity style={styles.qtyBtn} onPress={() => adjustQty(item, -1)}>
-                <Text style={styles.qtyBtnText}>-</Text>
+                <Text style={styles.qtyBtnText}>−</Text>
               </TouchableOpacity>
               <Text style={styles.qty}>{item.quantity}</Text>
               <TouchableOpacity style={styles.qtyBtn} onPress={() => adjustQty(item, 1)}>
