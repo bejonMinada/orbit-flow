@@ -134,19 +134,20 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
   }
 
   const values = points.map((point) => point.netAmount);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const chartHeight = 120;
+  const minValue = Math.min(...values, 0);
+  const maxValue = Math.max(...values, 0);
+  const range = maxValue - minValue || 1;
+  const chartHeight = 140;
   const chartWidth = 320;
-  const graphWidth = Math.max(chartWidth, points.length * 38);
-  const Y_AXIS_OFFSET = 6;
+  const graphWidth = Math.max(chartWidth, points.length * 44);
+  const zeroY = ((maxValue - 0) / range) * chartHeight;
 
   return (
     <View style={chartStyles.trendRow}>
       <View style={chartStyles.fixedYAxis}>
-        <Text style={chartStyles.trendMaxFixed}>{formatAmount(max, currency)}</Text>
-        <Text style={chartStyles.trendMinFixed}>{formatAmount(min, currency)}</Text>
+        <Text style={chartStyles.trendMaxFixed}>{formatAmount(maxValue, currency)}</Text>
+        <Text style={chartStyles.trendZeroFixed}>{formatAmount(0, currency)}</Text>
+        <Text style={chartStyles.trendMinFixed}>{formatAmount(minValue, currency)}</Text>
       </View>
       <ScrollView
         ref={scrollRef}
@@ -155,33 +156,26 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
       >
         <View style={{ width: graphWidth, height: chartHeight + 40 }}>
+          <View style={[chartStyles.zeroLine, { top: zeroY }]} />
           {points.map((point, index) => {
-            const x = points.length === 1 ? 0 : (index / (points.length - 1)) * (graphWidth - 20);
-          const y = chartHeight - ((point.netAmount - min) / range) * chartHeight;
-          const previous = index > 0 ? points[index - 1] : null;
-          const prevX = index > 0 ? ((index - 1) / (points.length - 1)) * (graphWidth - 20) : 0;
-          const prevY = previous ? chartHeight - ((previous.netAmount - min) / range) * chartHeight : 0;
-          const dx = x - prevX;
-          const dy = y - prevY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-          return (
-            <View key={`${point.label}_${index}`}>
-                {previous && (
-                  <View
-                    style={[
-                      chartStyles.lineSegment,
-                      {
-                        width: distance,
-                        left: ((prevX + x) / 2) + Y_AXIS_OFFSET - (distance / 2),
-                        top: ((prevY + y) / 2) + 10 - 1,
-                        transform: [{ rotate: `${angle}deg` }],
-                      },
-                    ]}
-                  />
-                )}
-              <View style={[chartStyles.point, { left: x + Y_AXIS_OFFSET, top: y + Y_AXIS_OFFSET }]} />
-              <Text style={[chartStyles.pointLabel, { left: x, top: chartHeight + 16 }]} numberOfLines={1}>
+            const x = points.length === 1 ? 0 : (index / (points.length - 1)) * (graphWidth - 24);
+            const y = ((maxValue - point.netAmount) / range) * chartHeight;
+            const barHeight = Math.max(2, Math.abs(zeroY - y));
+            const barTop = point.netAmount >= 0 ? y : zeroY;
+            return (
+              <View key={`${point.label}_${index}`}>
+              <View
+                style={[
+                  chartStyles.trendBar,
+                  {
+                    left: x + 6,
+                    top: barTop,
+                    height: barHeight,
+                    backgroundColor: point.netAmount >= 0 ? Colors.cashIn : Colors.cashOut,
+                  },
+                ]}
+              />
+              <Text style={[chartStyles.pointLabel, { left: x - 2, top: chartHeight + 16 }]} numberOfLines={1}>
                 {point.label}
               </Text>
             </View>
@@ -267,11 +261,11 @@ export default function HomeScreen() {
           <View style={styles.logoBadge}>
             <AscendingNLogo size={26} />
           </View>
-          <View style={styles.brandTextWrap}>
-            <Text style={styles.appName}>{Labels.appName}</Text>
-            <Text style={[styles.appDefinition, isDark && { color: darkMuted }]}>Track what is truly saved, spent, and owed with a net-first view.</Text>
+            <View style={styles.brandTextWrap}>
+              <Text style={styles.appName}>{Labels.appName}</Text>
+              <Text style={[styles.appDefinition, isDark && { color: darkMuted }]}>Track net cash, inventory, and settlements.</Text>
+            </View>
           </View>
-        </View>
         <Text style={[styles.subtitle, isDark && { color: darkMuted }]}>Dashboard</Text>
       </View>
 
@@ -439,12 +433,13 @@ const chartStyles = StyleSheet.create({
   barTrack: { flex: 1, height: 10, backgroundColor: Colors.surfaceAlt, borderRadius: 5, overflow: 'hidden' },
   barFill: { height: 10, borderRadius: 5, minWidth: 4 },
   barAmount: { fontSize: FontSize.xs, color: Colors.textMuted, width: 72, textAlign: 'right' },
-  lineSegment: { position: 'absolute', height: 2, backgroundColor: Colors.primary },
-  point: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
+  trendBar: { position: 'absolute', width: 16, borderRadius: Radius.sm },
+  zeroLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: Colors.textMuted, opacity: 0.5 },
   pointLabel: { position: 'absolute', width: 44, fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
   trendRow: { flexDirection: 'row', alignItems: 'stretch' },
   fixedYAxis: { width: 78, justifyContent: 'space-between', paddingVertical: 2, paddingRight: Spacing.xs },
   trendMinFixed: { fontSize: 10, color: Colors.textMuted },
+  trendZeroFixed: { fontSize: 10, color: Colors.textMuted, alignSelf: 'flex-start' },
   trendMaxFixed: { fontSize: 10, color: Colors.textMuted },
 });
 
