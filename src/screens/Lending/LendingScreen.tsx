@@ -165,7 +165,7 @@ export default function LendingScreen() {
         data={requests}
         keyExtractor={(r) => r.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No lending requests yet.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>No settlement requests yet.</Text>}
         renderItem={({ item }) => {
           const { daysOverdue, penaltyAmount } = getOverdueInfo(item);
           const monthlyInterest = item.interestRate > 0
@@ -180,7 +180,7 @@ export default function LendingScreen() {
                 </View>
               </View>
               <Text style={styles.cardAmount}>{formatAmount(item.amount, item.currency)}</Text>
-              <Text style={styles.cardLedger}>Ledger: {ledgers.find((l) => l.id === item.ledgerId)?.name ?? 'Unknown'}</Text>
+              <Text style={styles.cardLedger}>Cash Ledger: {ledgers.find((l) => l.id === item.ledgerId)?.name ?? 'Unknown'}</Text>
               <Text style={styles.cardTxn}>TXN: {item.transactionCode || '—'}</Text>
               {item.interestRate > 0 && (
                 <Text style={styles.cardDetail}>Interest: {item.interestRate}%/mo · Monthly due: {monthlyInterest}</Text>
@@ -209,9 +209,9 @@ export default function LendingScreen() {
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalBox} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalTitle}>New Lending Request</Text>
+            <Text style={styles.modalTitle}>New Settlement Request</Text>
 
-            <Text style={styles.fieldLabel}>Ledger</Text>
+               <Text style={styles.fieldLabel}>Cash Ledger</Text>
             <View style={styles.ledgerPicker}>
               {ledgers.map((l) => (
                 <TouchableOpacity
@@ -238,7 +238,7 @@ export default function LendingScreen() {
             <Text style={styles.fieldLabel}>Monthly Interest Rate (%)</Text>
             <TextInput style={styles.input} placeholder="e.g. 2 for 2% per month (0 = none)" value={interestRate} onChangeText={setInterestRate} keyboardType="decimal-pad" />
             {getMonthlyPayment() ? (
-              <Text style={styles.infoHint}>📌 Expected monthly interest: {getMonthlyPayment()}</Text>
+              <Text style={styles.infoHint}>Expected monthly interest: {getMonthlyPayment()}</Text>
             ) : null}
 
             <Text style={styles.fieldLabel}>Due Date (YYYY-MM-DD, optional)</Text>

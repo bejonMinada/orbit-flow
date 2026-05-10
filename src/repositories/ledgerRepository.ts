@@ -1,5 +1,6 @@
 import { getDb } from '../db/database';
 import { Ledger, Entry, EntryKind } from '../types';
+import { normalizeCurrencyCode } from '../data/currencies';
 
 function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -37,11 +38,12 @@ export async function createLedger(name: string, currency: string = 'PHP'): Prom
   }
   const now = new Date().toISOString();
   const id = newId('l');
+  const safeCurrency = normalizeCurrencyCode(currency);
   await db.runAsync(
     'INSERT INTO ledgers (id, type, name, visibility, base_currency, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [id, 'cash', name, 'private', currency, now, now]
+    [id, 'cash', name, 'private', safeCurrency, now, now]
   );
-  return { id, type: 'cash', name, visibility: 'private', baseCurrency: currency, members: [], createdAt: now, updatedAt: now };
+  return { id, type: 'cash', name, visibility: 'private', baseCurrency: safeCurrency, members: [], createdAt: now, updatedAt: now };
 }
 
 export async function deleteLedger(id: string): Promise<void> {
@@ -88,11 +90,12 @@ export async function createEntry(
   const now = new Date().toISOString();
   const id = newId('e');
   const at = occurredAt ?? now;
+  const safeCurrency = normalizeCurrencyCode(currency);
   await db.runAsync(
     'INSERT INTO entries (id, ledger_id, kind, amount, currency, category_id, note, occurred_at, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, ledgerId, kind, amount, currency, categoryId, note, at, 'local', now]
+    [id, ledgerId, kind, amount, safeCurrency, categoryId, note, at, 'local', now]
   );
-  return { id, ledgerId, kind, amount, currency, categoryId, note, occurredAt: at, createdBy: 'local', createdAt: now };
+  return { id, ledgerId, kind, amount, currency: safeCurrency, categoryId, note, occurredAt: at, createdBy: 'local', createdAt: now };
 }
 
 export async function deleteEntry(id: string): Promise<void> {
@@ -102,13 +105,14 @@ export async function deleteEntry(id: string): Promise<void> {
 
 export async function getLedgerBalance(ledgerId: string, currency: string): Promise<number> {
   const db = getDb();
+  const safeCurrency = normalizeCurrencyCode(currency);
   const inRow = await db.getFirstAsync<{ total: number }>(
     "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE ledger_id = ? AND kind = 'cash_in' AND currency = ?",
-    [ledgerId, currency]
+    [ledgerId, safeCurrency]
   );
   const outRow = await db.getFirstAsync<{ total: number }>(
     "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE ledger_id = ? AND kind = 'cash_out' AND currency = ?",
-    [ledgerId, currency]
+    [ledgerId, safeCurrency]
   );
   return (inRow?.total ?? 0) - (outRow?.total ?? 0);
 }
@@ -116,26 +120,42 @@ export async function getLedgerBalance(ledgerId: string, currency: string): Prom
 export async function getDashboardChartData(currency: string = 'PHP'): Promise<{
   totalIncome: number;
   totalExpenses: number;
+  netBalance: number;
   categoryBreakdown: { categoryId: string; total: number }[];
 }> {
   const db = getDb();
+  const safeCurrency = normalizeCurrencyCode(currency);
   const [incomeRow, expensesRow, categoryRows] = await Promise.all([
     db.getFirstAsync<{ total: number }>(
       "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_in' AND currency = ?",
-      [currency]
+      [safeCurrency]
     ),
     db.getFirstAsync<{ total: number }>(
       "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_out' AND currency = ?",
-      [currency]
+      [safeCurrency]
     ),
     db.getAllAsync<{ category_id: string; total: number }>(
       "SELECT category_id, COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_out' AND currency = ? GROUP BY category_id ORDER BY total DESC LIMIT 6",
-      [currency]
+      [safeCurrency]
     ),
   ]);
+  const totalIncome = incomeRow?.total ?? 0;
+  const totalExpenses = expensesRow?.total ?? 0;
   return {
-    totalIncome: incomeRow?.total ?? 0,
-    totalExpenses: expensesRow?.total ?? 0,
+    totalIncome,
+    totalExpenses,
+    netBalance: totalIncome - totalExpenses,
     categoryBreakdown: categoryRows.map((r) => ({ categoryId: r.category_id, total: r.total })),
   };
+}
+
+export async function updateEntry(
+  id: string,
+  updates: Pick<Entry, 'kind' | 'amount' | 'categoryId' | 'note'>
+): Promise<void> {
+  const db = getDb();
+  await db.runAsync(
+    'UPDATE entries SET kind = ?, amount = ?, category_id = ?, note = ? WHERE id = ?',
+    [updates.kind, updates.amount, updates.categoryId, updates.note, id]
+  );
 }

@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -38,7 +39,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <BottomTabNavigator />
       </NavigationContainer>
     </SafeAreaProvider>

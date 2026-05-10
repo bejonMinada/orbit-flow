@@ -60,11 +60,17 @@ export const CURRENCIES: Currency[] = [
 ];
 
 export function getCurrency(code: string): Currency | undefined {
-  return CURRENCIES.find((c) => c.code === code);
+  return CURRENCIES.find((c) => c.code === code.toUpperCase());
+}
+
+export function normalizeCurrencyCode(code: string, fallback: string = 'PHP'): string {
+  const normalized = code.trim().toUpperCase();
+  return getCurrency(normalized) ? normalized : fallback;
 }
 
 export function formatAmount(amount: number, currencyCode: string): string {
-  const currency = getCurrency(currencyCode);
+  const safeCode = normalizeCurrencyCode(currencyCode);
+  const currency = getCurrency(safeCode);
   const symbol = currency?.symbol ?? currencyCode;
   const decimals = currency?.minorUnits ?? 2;
   return `${symbol}${amount.toFixed(decimals)}`;

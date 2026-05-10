@@ -39,7 +39,7 @@ export default function AddEntryScreen({ route, navigation }: Props) {
             onPress={() => setKind(k)}
           >
             <Text style={[styles.toggleText, kind === k && styles.toggleTextActive]}>
-              {k === 'cash_in' ? '↑ Cash In' : '↓ Cash Out'}
+              {k === 'cash_in' ? 'Cash In' : 'Cash Out'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -77,7 +77,7 @@ export default function AddEntryScreen({ route, navigation }: Props) {
       </View>
 
       <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-        <Text style={styles.saveBtnText}>Save Entry</Text>
+        <Text style={styles.saveBtnText}>Save Transaction</Text>
       </TouchableOpacity>
     </ScrollView>
   );

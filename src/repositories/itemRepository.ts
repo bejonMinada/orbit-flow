@@ -1,5 +1,6 @@
 import { getDb } from '../db/database';
 import { ItemTracker, TrackedItem, PriceRecord } from '../types';
+import { normalizeCurrencyCode } from '../data/currencies';
 
 function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -84,7 +85,8 @@ export async function createTrackedItem(
   }
   const now = new Date().toISOString();
   const id = newId('item');
-  const priceHistory: PriceRecord[] = [{ price, currency, at: now }];
+  const safeCurrency = normalizeCurrencyCode(currency);
+  const priceHistory: PriceRecord[] = [{ price, currency: safeCurrency, at: now }];
   await db.runAsync(
     'INSERT INTO tracked_items (id, tracker_id, name, barcode, unit, quantity, last_price, price_history, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [id, trackerId, name, barcode ?? null, unit, quantity, price, JSON.stringify(priceHistory), now, now]
