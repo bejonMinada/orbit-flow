@@ -82,26 +82,6 @@ function IncomeExpenseBar({ income, expenses }: { income: number; expenses: numb
   );
 }
 
-function SavingsBar({ income, expenses, currency }: { income: number; expenses: number; currency: string }) {
-  const savings = income - expenses;
-  const savingsPct = income > 0 ? Math.max(0, Math.min(100, (savings / income) * 100)) : 0;
-  const color = savingsPct >= 20 ? Colors.cashIn : savingsPct >= 5 ? Colors.warning : Colors.cashOut;
-  return (
-    <View>
-      <View style={chartStyles.savingsRow}>
-        <Text style={chartStyles.savingsLabel}>Savings Rate</Text>
-        <Text style={[chartStyles.savingsPct, { color }]}>{savingsPct.toFixed(1)}%</Text>
-      </View>
-      <View style={chartStyles.progressTrack}>
-        <View style={[chartStyles.progressFill, { width: `${savingsPct}%`, backgroundColor: color }]} />
-      </View>
-      <Text style={chartStyles.savingsHint}>
-        {savings >= 0 ? `Saving ${formatAmount(savings, currency)} of income` : `Overspent by ${formatAmount(Math.abs(savings), currency)}`}
-      </Text>
-    </View>
-  );
-}
-
 function CategoryBars({ breakdown, maxAmount, currency }: { breakdown: { categoryId: string; total: number }[]; maxAmount: number; currency: string }) {
   if (breakdown.length === 0) {
     return <Text style={chartStyles.emptyText}>No expense data yet</Text>;
@@ -198,7 +178,6 @@ export default function HomeScreen() {
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [ledgerBalances, setLedgerBalances] = useState<Record<string, number>>({});
   const [lendingRequests, setLendingRequests] = useState<LendingRequest[]>([]);
-  const [totalBalance, setTotalBalance] = useState(0);
   const [trackerCount, setTrackerCount] = useState(0);
   const [trackedItemCount, setTrackedItemCount] = useState(0);
   const [chartData, setChartData] = useState<ChartData>({
@@ -237,7 +216,6 @@ export default function HomeScreen() {
       );
       const nextLedgerBalances = Object.fromEntries(balances);
       setLedgerBalances(nextLedgerBalances);
-      setTotalBalance(Object.values(nextLedgerBalances).reduce((sum, balance) => sum + balance, 0));
     } catch (_) {}
   }, [trendRange]);
 
@@ -248,7 +226,7 @@ export default function HomeScreen() {
   const outstandingLabel = useMemo(() => formatLendingOutstanding(lendingRequests), [lendingRequests]);
   const maxIncomeCategoryAmount = chartData.incomeCategoryBreakdown.length > 0 ? chartData.incomeCategoryBreakdown[0].total : 0;
   const maxExpenseCategoryAmount = chartData.expenseCategoryBreakdown.length > 0 ? chartData.expenseCategoryBreakdown[0].total : 0;
-  const netCardColor = totalBalance < 0 ? Colors.danger : (totalBalance === 0 ? Colors.settled : Colors.primary);
+  const netCardColor = chartData.netBalance < 0 ? Colors.danger : (chartData.netBalance === 0 ? Colors.settled : Colors.primary);
 
   return (
     <ScrollView
@@ -272,39 +250,24 @@ export default function HomeScreen() {
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, styles.primaryCard, { backgroundColor: netCardColor }]}>
           <Text style={styles.balanceLabel}>Net Balance</Text>
-          <Text style={styles.balanceAmount}>{formatAmount(totalBalance, baseCurrency)}</Text>
-          <Text style={styles.ledgerCount}>{totalBalance === 0 ? 'Zero balance' : `${ledgers.length} Cash Ledger${ledgers.length !== 1 ? 's' : ''}`}</Text>
+          <Text style={styles.balanceAmount}>{formatAmount(chartData.netBalance, baseCurrency)}</Text>
+          <Text style={styles.ledgerCount}>Net Result (Income - Expenses)</Text>
         </View>
-        <View style={[styles.statCard, isDark && { backgroundColor: darkSurface }]}>
-          <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Tracked Items</Text>
-          <Text style={[styles.statValue, isDark && { color: darkText }]}>{trackedItemCount}</Text>
-          <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{trackerCount} inventory list{trackerCount !== 1 ? 's' : ''} active</Text>
-        </View>
-        <View style={[styles.statCard, isDark && { backgroundColor: darkSurface }]}>
-          <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Pending Settlements</Text>
-          <Text style={[styles.statValue, isDark && { color: darkText }]}>{lendingMetrics.pendingCount}</Text>
-          <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{lendingMetrics.approvedCount} active request{lendingMetrics.approvedCount !== 1 ? 's' : ''}</Text>
-        </View>
-        <View style={[styles.statCard, isDark && { backgroundColor: darkSurface }]}>
-          <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Outstanding Net Owed</Text>
-          <Text style={[styles.statValueSmall, isDark && { color: darkText }]}>{outstandingLabel}</Text>
-          <Text style={[styles.statHint, isDark && { color: darkMuted }]}>{lendingMetrics.settledCount} settled request{lendingMetrics.settledCount !== 1 ? 's' : ''}</Text>
-        </View>
-      </View>
-
-      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Net Result</Text>
-      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
-        <View style={styles.chartAmounts}>
-          <View>
-            <Text style={styles.chartAmountLabel}>Calculated Net</Text>
-            <Text
-              style={[
-                styles.chartAmount,
-                { color: chartData.netBalance > 0 ? Colors.cashIn : chartData.netBalance < 0 ? Colors.cashOut : Colors.settled },
-              ]}
-            >
-              {formatAmount(chartData.netBalance, baseCurrency)}
-            </Text>
+        <View style={styles.statsRowThree}>
+          <View style={[styles.statCard, styles.statCardCompact, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.statLabelCompact, isDark && { color: darkMuted }]} numberOfLines={1}>Tracked</Text>
+            <Text style={[styles.statValue, isDark && { color: darkText }]}>{trackedItemCount}</Text>
+            <Text style={[styles.statHintCompact, isDark && { color: darkMuted }]} numberOfLines={1}>{trackerCount} active</Text>
+          </View>
+          <View style={[styles.statCard, styles.statCardCompact, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.statLabelCompact, isDark && { color: darkMuted }]} numberOfLines={1}>Pending</Text>
+            <Text style={[styles.statValue, isDark && { color: darkText }]}>{lendingMetrics.pendingCount}</Text>
+            <Text style={[styles.statHintCompact, isDark && { color: darkMuted }]} numberOfLines={1}>{lendingMetrics.approvedCount} active</Text>
+          </View>
+          <View style={[styles.statCard, styles.statCardCompact, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.statLabelCompact, isDark && { color: darkMuted }]} numberOfLines={1}>Lent Amount</Text>
+            <Text style={[styles.statValueSmall, isDark && { color: darkText }]} numberOfLines={1}>{outstandingLabel}</Text>
+            <Text style={[styles.statHintCompact, isDark && { color: darkMuted }]} numberOfLines={1}>{lendingMetrics.settledCount} settled</Text>
           </View>
         </View>
       </View>
@@ -322,11 +285,6 @@ export default function HomeScreen() {
           </View>
         </View>
         <IncomeExpenseBar income={chartData.totalIncome} expenses={chartData.totalExpenses} />
-      </View>
-
-      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Savings Overview</Text>
-      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
-        <SavingsBar income={chartData.totalIncome} expenses={chartData.totalExpenses} currency={baseCurrency} />
       </View>
 
       <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Net Cash Trend</Text>
@@ -353,25 +311,6 @@ export default function HomeScreen() {
       <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Top Spending Categories</Text>
       <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
         <CategoryBars breakdown={chartData.expenseCategoryBreakdown} maxAmount={maxExpenseCategoryAmount} currency={baseCurrency} />
-      </View>
-
-      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Quick Actions</Text>
-      <View style={styles.quickActions}>
-        {[
-          { label: 'Cash Ledgers', route: 'Ledgers' as const },
-          { label: 'Itemized Inventories', route: 'Itemized' as const },
-          { label: 'Settlement Hub', route: 'Lending' as const },
-          { label: 'Settings', route: 'Settings' as const },
-        ].map((a) => (
-          <TouchableOpacity
-            key={a.label}
-            style={[styles.quickAction, isDark && { backgroundColor: darkSurface }]}
-            activeOpacity={0.86}
-            onPress={() => navigation.navigate(a.route)}
-          >
-            <Text style={[styles.quickLabel, isDark && { color: darkText }]}>{a.label}</Text>
-          </TouchableOpacity>
-        ))}
       </View>
 
       <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Recent Ledgers</Text>
@@ -421,12 +360,6 @@ const chartStyles = StyleSheet.create({
   legendText: { fontSize: FontSize.xs, color: Colors.textSecondary },
   emptyBar: { height: 16, backgroundColor: Colors.surfaceAlt, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: FontSize.xs, color: Colors.textMuted, fontStyle: 'italic' },
-  savingsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xs },
-  savingsLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '600' },
-  savingsPct: { fontSize: FontSize.sm, fontWeight: 'bold' },
-  progressTrack: { height: 12, backgroundColor: Colors.surfaceAlt, borderRadius: 6, overflow: 'hidden' },
-  progressFill: { height: 12, borderRadius: 6 },
-  savingsHint: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 4 },
   barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm, gap: Spacing.xs },
   barLabel: { flexDirection: 'row', alignItems: 'center', width: 120 },
   barName: { fontSize: FontSize.xs, color: Colors.textSecondary, flex: 1 },
@@ -463,6 +396,7 @@ const styles = StyleSheet.create({
   appDefinition: { fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 17, maxWidth: 250 },
   subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: Spacing.lg, fontWeight: '600' },
   statsGrid: { gap: Spacing.sm, marginBottom: Spacing.md },
+  statsRowThree: { flexDirection: 'row', gap: Spacing.sm },
   statCard: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
@@ -481,9 +415,12 @@ const styles = StyleSheet.create({
   balanceAmount: { color: '#fff', fontSize: FontSize.xxxl, fontWeight: 'bold', marginTop: 4 },
   ledgerCount: { color: 'rgba(255,255,255,0.7)', fontSize: FontSize.sm, marginTop: 4 },
   statLabel: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '600' },
+  statLabelCompact: { color: Colors.textSecondary, fontSize: FontSize.xs, fontWeight: '600' },
   statValue: { color: Colors.textPrimary, fontSize: FontSize.xxl, fontWeight: '700', marginTop: 4 },
   statValueSmall: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700', marginTop: 6 },
   statHint: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: 4 },
+  statHintCompact: { color: Colors.textMuted, fontSize: 10, marginTop: 4 },
+  statCardCompact: { flex: 1, padding: Spacing.sm },
   chartCard: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
@@ -504,13 +441,6 @@ const styles = StyleSheet.create({
   rangeChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   rangeChipText: { fontSize: FontSize.xs, color: Colors.textSecondary, textTransform: 'capitalize', fontWeight: '600' },
   rangeChipTextActive: { color: '#fff' },
-  quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
-  quickAction: {
-    backgroundColor: Colors.surface, borderRadius: Radius.md,
-    padding: Spacing.md, alignItems: 'center', flex: 1, minWidth: '40%',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-  },
-  quickLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, textAlign: 'center', fontWeight: '600' },
   ledgerCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.md,
     padding: Spacing.md, marginBottom: Spacing.sm, flexDirection: 'row', justifyContent: 'space-between',
