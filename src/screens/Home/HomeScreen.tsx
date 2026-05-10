@@ -251,7 +251,7 @@ export default function HomeScreen() {
         <View style={[styles.statCard, styles.primaryCard, { backgroundColor: netCardColor }]}>
           <Text style={styles.balanceLabel}>Net Balance</Text>
           <Text style={styles.balanceAmount}>{formatAmount(chartData.netBalance, baseCurrency)}</Text>
-          <Text style={styles.ledgerCount}>Income - Expenses</Text>
+          <Text style={styles.ledgerCount}>Net Result (Income - Expenses)</Text>
         </View>
         <View style={styles.statsRowThree}>
           <View style={[styles.statCard, styles.statCardCompact, isDark && { backgroundColor: darkSurface }]}>
@@ -265,7 +265,7 @@ export default function HomeScreen() {
             <Text style={[styles.statHintCompact, isDark && { color: darkMuted }]} numberOfLines={1}>{lendingMetrics.approvedCount} active</Text>
           </View>
           <View style={[styles.statCard, styles.statCardCompact, isDark && { backgroundColor: darkSurface }]}>
-            <Text style={[styles.statLabelCompact, isDark && { color: darkMuted }]} numberOfLines={1}>Lended Amount</Text>
+            <Text style={[styles.statLabelCompact, isDark && { color: darkMuted }]} numberOfLines={1}>Lent Amount</Text>
             <Text style={[styles.statValueSmall, isDark && { color: darkText }]} numberOfLines={1}>{outstandingLabel}</Text>
             <Text style={[styles.statHintCompact, isDark && { color: darkMuted }]} numberOfLines={1}>{lendingMetrics.settledCount} settled</Text>
           </View>

@@ -97,7 +97,7 @@ export default function LendingScreen() {
     return shifted.toISOString().slice(0, 10);
   };
 
-  const parseDateInput = (dateValue: string): Date | undefined => {
+  const parseISODateString = (dateValue: string): Date | undefined => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return undefined;
     const parsed = new Date(dateValue);
     if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== dateValue) return undefined;
@@ -487,7 +487,7 @@ export default function LendingScreen() {
             ) : null}
             {showDueDatePicker ? (
               <DateTimePicker
-                value={parseDateInput(dueDate) ?? new Date()}
+                value={parseISODateString(dueDate) ?? new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onDueDatePickerChange}
@@ -660,7 +660,7 @@ export default function LendingScreen() {
             ) : null}
             {showEditDueDatePicker ? (
               <DateTimePicker
-                value={parseDateInput(editDueDate) ?? new Date()}
+                value={parseISODateString(editDueDate) ?? new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onEditDueDatePickerChange}
