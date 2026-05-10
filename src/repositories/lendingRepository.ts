@@ -52,7 +52,6 @@ type LendingPaymentRow = {
   applied_principal: number;
   applied_interest: number;
   applied_penalty: number;
-  cashback_amount: number;
   note: string | null;
   paid_at: string;
   created_at: string;
@@ -89,7 +88,6 @@ function mapLendingPayment(row: LendingPaymentRow): LendingPayment {
     appliedPrincipal: row.applied_principal ?? 0,
     appliedInterest: row.applied_interest ?? 0,
     appliedPenalty: row.applied_penalty ?? 0,
-    cashbackAmount: row.cashback_amount ?? 0,
     note: row.note ?? undefined,
     paidAt: row.paid_at,
     createdAt: row.created_at,
@@ -136,32 +134,6 @@ async function insertLedgerEntry(
       currency,
       'cat_lending',
       getLendingEntryNote(kind, borrowerName, transactionCode, referenceNumber),
-      occurredAt,
-      'local',
-      occurredAt,
-    ]
-  );
-}
-
-async function insertCashbackLedgerEntry(
-  db: ReturnType<typeof getDb>,
-  ledgerId: string,
-  amount: number,
-  currency: string,
-  borrowerName: string,
-  transactionCode: string,
-  occurredAt: string
-): Promise<void> {
-  await db.runAsync(
-    'INSERT INTO entries (id, ledger_id, kind, amount, currency, category_id, note, occurred_at, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [
-      newId('e'),
-      ledgerId,
-      'cash_out',
-      amount,
-      currency,
-      'cat_lending',
-      `Cashback returned to ${borrowerName} (TXN: ${transactionCode})`,
       occurredAt,
       'local',
       occurredAt,
@@ -302,20 +274,6 @@ export async function recordLendingPayment(
   const futureInterestAllocation = Math.min(afterPenalty, breakdown.futureInterest);
   const interestAllocation = accruedInterestAllocation + futureInterestAllocation;
 
-  let cashbackAllocation = 0;
-  const principalRemainingAfter = Math.max(0, breakdown.principalRemaining - principalAllocation);
-  const accruedInterestAfter = Math.max(0, breakdown.accruedInterest - accruedInterestAllocation);
-  const penaltiesAfter = Math.max(0, breakdown.penalties - penaltyAllocation);
-  const futureInterestAfter = Math.max(0, breakdown.futureInterest - futureInterestAllocation);
-  const settlesLoan =
-    principalRemainingAfter <= settlementThreshold
-    && accruedInterestAfter <= settlementThreshold
-    && penaltiesAfter <= settlementThreshold
-    && futureInterestAfter <= settlementThreshold;
-  if (settlesLoan && breakdown.cashbackIfPaidInFull > 0 && futureInterestAllocation > settlementThreshold) {
-    cashbackAllocation = breakdown.cashbackIfPaidInFull;
-  }
-
   const now = new Date().toISOString();
   const ref = referenceNumber?.trim() ?? '';
   const noteText = note?.trim() || null;
@@ -323,8 +281,8 @@ export async function recordLendingPayment(
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `INSERT INTO lending_payments
-        (id, lending_request_id, amount_paid, applied_principal, applied_interest, applied_penalty, cashback_amount, note, paid_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, lending_request_id, amount_paid, applied_principal, applied_interest, applied_penalty, note, paid_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newId('lp'),
         lendingRequestId,
@@ -332,7 +290,6 @@ export async function recordLendingPayment(
         principalAllocation,
         interestAllocation,
         penaltyAllocation,
-        cashbackAllocation,
         noteText,
         now,
         now,
@@ -350,18 +307,6 @@ export async function recordLendingPayment(
       ref || request.referenceNumber,
       now
     );
-
-    if (cashbackAllocation > 0) {
-      await insertCashbackLedgerEntry(
-        db,
-        request.ledgerId,
-        cashbackAllocation,
-        request.currency,
-        request.borrowerName,
-        request.transactionCode,
-        now
-      );
-    }
 
     const updatedPayments = await getLendingPayments(lendingRequestId);
     const updatedBreakdown = computeLendingBreakdown(request, updatedPayments);

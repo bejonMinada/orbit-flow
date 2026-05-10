@@ -148,7 +148,6 @@ export interface LendingPayment {
   appliedPrincipal: number;
   appliedInterest: number;
   appliedPenalty: number;
-  cashbackAmount: number;
   note?: string;
   paidAt: string;
   createdAt: string;

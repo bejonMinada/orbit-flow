@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Colors, FontSize, Radius, Spacing } from '../constants';
+import { useThemeMode } from '../theme/ThemeContext';
 
 type Props = {
   visible: boolean;
@@ -20,6 +21,13 @@ export default function BarcodeScannerModal({
   onClose,
   onScanned,
 }: Props) {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkSurfaceAlt = '#2A3240';
+  const darkBorder = '#334155';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
   const [permission, requestPermission] = useCameraPermissions();
   const [locked, setLocked] = useState(false);
 
@@ -52,11 +60,11 @@ export default function BarcodeScannerModal({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, isDark && { backgroundColor: darkSurface }]}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.subtitle}>{subtitle}</Text>
+              <Text style={[styles.title, isDark && { color: darkText }]}>{title}</Text>
+              <Text style={[styles.subtitle, isDark && { color: darkMuted }]}>{subtitle}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Text style={styles.close}>Close</Text>
@@ -76,8 +84,8 @@ export default function BarcodeScannerModal({
               </View>
             </View>
           ) : (
-            <View style={styles.permissionCard}>
-              <Text style={styles.permissionText}>Camera access is needed to scan barcodes and QR codes.</Text>
+            <View style={[styles.permissionCard, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]}>
+              <Text style={[styles.permissionText, isDark && { color: darkMuted }]}>Camera access is needed to scan barcodes and QR codes.</Text>
               <TouchableOpacity style={styles.permissionBtn} onPress={() => requestPermission()}>
                 <Text style={styles.permissionBtnText}>Allow Camera</Text>
               </TouchableOpacity>

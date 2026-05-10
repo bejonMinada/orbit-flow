@@ -116,12 +116,12 @@ export default function ItemizedListScreen({ navigation }: Props) {
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>New Itemized Inventory</Text>
-            <TextInput style={styles.input} placeholder="Inventory name (e.g. Groceries)" value={newName} onChangeText={setNewName} />
+          <View style={[styles.modalBox, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>New Itemized Inventory</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: '#2A3240', borderColor: darkBorder, color: darkText }]} placeholder="Inventory name (e.g. Groceries)" placeholderTextColor={isDark ? darkMuted : undefined} value={newName} onChangeText={setNewName} />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: '#2A3240', borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setModalVisible(false)}>
+                <Text style={[styles.cancelText, isDark && { color: darkText }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={handleAdd}>
                 <Text style={styles.createText}>Create</Text>
@@ -133,12 +133,12 @@ export default function ItemizedListScreen({ navigation }: Props) {
 
       <Modal visible={renameModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Rename Inventory</Text>
-            <TextInput style={styles.input} placeholder="Inventory name" value={renameName} onChangeText={setRenameName} />
+          <View style={[styles.modalBox, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Rename Inventory</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: '#2A3240', borderColor: darkBorder, color: darkText }]} placeholder="Inventory name" placeholderTextColor={isDark ? darkMuted : undefined} value={renameName} onChangeText={setRenameName} />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setRenameModalVisible(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: '#2A3240', borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setRenameModalVisible(false)}>
+                <Text style={[styles.cancelText, isDark && { color: darkText }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={handleRename}>
                 <Text style={styles.createText}>Save</Text>

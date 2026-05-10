@@ -28,7 +28,6 @@ export interface LendingBreakdown {
   penalties: number;
   totalPaid: number;
   outstanding: number;
-  cashbackIfPaidInFull: number;
   remainingMonths: number;
   installments: LendingInstallment[];
 }
@@ -160,7 +159,6 @@ export function computeLendingBreakdown(
 
   const penaltiesGross = installments.reduce((sum, installment) => sum + installment.penaltyAmount, 0);
   const penalties = Math.max(0, penaltiesGross - penaltyPaid);
-  const cashbackIfPaidInFull = principalRemaining > 0 ? futureInterest : 0;
   const outstanding = Math.max(0, principalRemaining + accruedInterest + futureInterest + penalties);
   const remainingMonths = Math.max(0, termMonths - elapsedMonths);
 
@@ -173,7 +171,6 @@ export function computeLendingBreakdown(
     penalties,
     totalPaid,
     outstanding,
-    cashbackIfPaidInFull,
     remainingMonths,
     installments,
   };
