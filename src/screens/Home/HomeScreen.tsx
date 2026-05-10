@@ -248,7 +248,7 @@ export default function HomeScreen() {
   const outstandingLabel = useMemo(() => formatLendingOutstanding(lendingRequests), [lendingRequests]);
   const maxIncomeCategoryAmount = chartData.incomeCategoryBreakdown.length > 0 ? chartData.incomeCategoryBreakdown[0].total : 0;
   const maxExpenseCategoryAmount = chartData.expenseCategoryBreakdown.length > 0 ? chartData.expenseCategoryBreakdown[0].total : 0;
-  const netCardColor = totalBalance < 0 ? Colors.danger : totalBalance === 0 ? Colors.settled : Colors.primary;
+  const netCardColor = totalBalance < 0 ? Colors.danger : (totalBalance === 0 ? Colors.settled : Colors.primary);
 
   return (
     <ScrollView
@@ -273,7 +273,7 @@ export default function HomeScreen() {
         <View style={[styles.statCard, styles.primaryCard, { backgroundColor: netCardColor }]}>
           <Text style={styles.balanceLabel}>Net Balance</Text>
           <Text style={styles.balanceAmount}>{formatAmount(totalBalance, baseCurrency)}</Text>
-          <Text style={styles.ledgerCount}>{totalBalance === 0 ? 'Dormant / unset account' : `${ledgers.length} Cash Ledger${ledgers.length !== 1 ? 's' : ''}`}</Text>
+          <Text style={styles.ledgerCount}>{totalBalance === 0 ? 'Zero balance' : `${ledgers.length} Cash Ledger${ledgers.length !== 1 ? 's' : ''}`}</Text>
         </View>
         <View style={[styles.statCard, isDark && { backgroundColor: darkSurface }]}>
           <Text style={[styles.statLabel, isDark && { color: darkMuted }]}>Tracked Items</Text>

@@ -29,6 +29,8 @@ import CurrencyDropdown from '../../components/CurrencyDropdown';
 import { useThemeMode } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemTrackerDetail'>;
+const MIN_LIST_BOTTOM_PADDING = 120;
+const FAB_CLEARANCE = 92;
 
 export default function ItemTrackerDetailScreen({ route }: Props) {
   const insets = useSafeAreaInsets();
@@ -255,7 +257,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       <View style={styles.searchBar}>
         <TextInput
           style={[styles.searchInput, isDark && { backgroundColor: darkSurface, borderColor: darkBorder, color: darkText }]}
-          placeholder="Search by name or barcode / QR code"
+          placeholder="Search by name, barcode, or QR code"
           placeholderTextColor={isDark ? darkMuted : undefined}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -283,7 +285,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       <FlatList
         data={filteredItems}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: Math.max(120, insets.bottom + 92) }]}
+        contentContainerStyle={[styles.list, { paddingBottom: Math.max(MIN_LIST_BOTTOM_PADDING, insets.bottom + FAB_CLEARANCE) }]}
         ListEmptyComponent={<Text style={styles.empty}>{items.length === 0 ? 'No items yet. Tap + to add one.' : 'No items matched your search.'}</Text>}
         renderItem={({ item }) => (
           <View style={[styles.card, isDark && { backgroundColor: darkSurface }]}>
@@ -398,7 +400,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
               onChangeText={setAlternativePrice}
               keyboardType="decimal-pad"
             />
-            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Barcode / QR code (optional)</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Barcode or QR code (optional)</Text>
             <View style={styles.barcodeRow}>
               <TextInput
                 style={[styles.input, styles.barcodeInput, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]}

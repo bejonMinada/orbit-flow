@@ -3,6 +3,8 @@ import { Ledger, Entry, EntryKind } from '../types';
 import { normalizeCurrencyCode } from '../data/currencies';
 import { getWorkspaceBaseCurrency } from './workspaceRepository';
 
+const CATEGORY_OTHER = 'cat_other';
+
 function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -128,7 +130,7 @@ export async function getDashboardChartData(currency: string = 'PHP'): Promise<{
 }> {
   const db = getDb();
   const safeCurrency = normalizeCurrencyCode(currency);
-  const [incomeRow, expensesRow, incomeCategoryRows, expenseCategoryRows, checklistRow] = await Promise.all([
+  const [incomeRow, expensesRow, incomeCategoryRows, expenseCategoryRows, checklistRows] = await Promise.all([
     db.getFirstAsync<{ total: number }>(
       "SELECT COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_in' AND currency = ?",
       [safeCurrency]
@@ -145,26 +147,36 @@ export async function getDashboardChartData(currency: string = 'PHP'): Promise<{
       "SELECT category_id, COALESCE(SUM(amount), 0) as total FROM entries WHERE kind = 'cash_out' AND currency = ? GROUP BY category_id ORDER BY total DESC LIMIT 6",
       [safeCurrency]
     ),
-    db.getFirstAsync<{ total: number }>(
-      `SELECT COALESCE(SUM(ssi.planned_quantity * ti.last_price), 0) as total
+    db.getAllAsync<{ planned_quantity: number; price_history: string }>(
+      `SELECT ssi.planned_quantity, ti.price_history
          FROM shopping_session_items ssi
          JOIN tracked_items ti ON ti.id = ssi.tracked_item_id
         WHERE ssi.status = 'purchased'`,
     ),
   ]);
   const totalIncome = incomeRow?.total ?? 0;
-  const checklistExpenses = checklistRow?.total ?? 0;
+  const checklistExpenses = checklistRows.reduce((sum, row) => {
+    try {
+      const history = JSON.parse(row.price_history) as { price: number; currency: string; at: string }[];
+      const latest = history[history.length - 1];
+      if (!latest) return sum;
+      if (latest?.currency !== safeCurrency) return sum;
+      return sum + (row.planned_quantity * latest.price);
+    } catch {
+      return sum;
+    }
+  }, 0);
   const totalExpenses = (expensesRow?.total ?? 0) + checklistExpenses;
   const mergedExpenseRows = [...expenseCategoryRows];
   if (checklistExpenses > 0) {
-    const otherIdx = mergedExpenseRows.findIndex((row) => row.category_id === 'cat_other');
+    const otherIdx = mergedExpenseRows.findIndex((row) => row.category_id === CATEGORY_OTHER);
     if (otherIdx >= 0) {
       mergedExpenseRows[otherIdx] = {
-        category_id: 'cat_other',
+        category_id: CATEGORY_OTHER,
         total: mergedExpenseRows[otherIdx].total + checklistExpenses,
       };
     } else {
-      mergedExpenseRows.push({ category_id: 'cat_other', total: checklistExpenses });
+      mergedExpenseRows.push({ category_id: CATEGORY_OTHER, total: checklistExpenses });
     }
     mergedExpenseRows.sort((a, b) => b.total - a.total);
   }

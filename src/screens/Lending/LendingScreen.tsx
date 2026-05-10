@@ -32,6 +32,8 @@ const STATUS_LABEL: Record<LendingStatus, string> = {
   declined: 'Declined',
   settled: 'Settled',
 };
+const MIN_LIST_BOTTOM_PADDING = 120;
+const FAB_CLEARANCE = 96;
 
 type LendingWithBreakdown = {
   request: LendingRequest;
@@ -74,11 +76,16 @@ export default function LendingScreen() {
   const darkSurface = '#1F252F';
   const darkText = '#E6E9EE';
 
-  const shiftIsoDateByMonths = (dateValue: string, months: number): string => {
+  const addMonthsWithDayClamp = (dateValue: string, months: number): string => {
     const parsed = new Date(dateValue);
     if (Number.isNaN(parsed.getTime())) return dateValue;
-    parsed.setMonth(parsed.getMonth() + months);
-    return parsed.toISOString().slice(0, 10);
+    const day = parsed.getDate();
+    const shifted = new Date(parsed);
+    shifted.setDate(1);
+    shifted.setMonth(shifted.getMonth() + months);
+    const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
+    shifted.setDate(Math.min(day, lastDay));
+    return shifted.toISOString().slice(0, 10);
   };
 
   const load = useCallback(async () => {
@@ -137,19 +144,19 @@ export default function LendingScreen() {
     const parsedInterest = parseFloat(interestRate) || 0;
     const parsedTerm = parseInt(termMonths, 10);
     const parsedPenalty = parseFloat(penaltyRate) || 0;
-    const trimmedBorrowDate = dueDate.trim() || undefined;
+    const trimmedDueDate = dueDate.trim() || undefined;
 
     if (!Number.isFinite(parsedTerm) || parsedTerm < 1) {
       Alert.alert('Invalid term', 'Repayment term should be at least 1 month.');
       return;
     }
-    if (trimmedBorrowDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedBorrowDate)) {
+    if (trimmedDueDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDueDate)) {
       Alert.alert('Invalid date', 'Please enter the borrow date in YYYY-MM-DD format.');
       return;
     }
-    if (trimmedBorrowDate) {
-      const parsed = new Date(trimmedBorrowDate);
-      if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trimmedBorrowDate) {
+    if (trimmedDueDate) {
+      const parsed = new Date(trimmedDueDate);
+      if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trimmedDueDate) {
         Alert.alert('Invalid date', 'The borrow date is not a valid calendar date. Please check the day and month values.');
         return;
       }
@@ -164,7 +171,7 @@ export default function LendingScreen() {
         ledger?.baseCurrency ?? 'PHP',
         parsedInterest,
         parsedTerm,
-        trimmedBorrowDate ? shiftIsoDateByMonths(trimmedBorrowDate, 1) : undefined,
+        trimmedDueDate ? addMonthsWithDayClamp(trimmedDueDate, 1) : undefined,
         parsedPenalty,
         undefined,
         note.trim() || undefined
@@ -189,7 +196,7 @@ export default function LendingScreen() {
     setEditAmount(String(request.amount));
     setEditInterestRate(String(request.interestRate));
     setEditTermMonths(String(request.termMonths));
-    setEditDueDate(request.dueDate ? shiftIsoDateByMonths(request.dueDate, -1) : '');
+    setEditDueDate(request.dueDate ? addMonthsWithDayClamp(request.dueDate, -1) : '');
     setEditPenaltyRate(String(request.penaltyRate));
     setEditReference(request.referenceNumber ?? '');
     setEditNote(request.note ?? '');
@@ -244,7 +251,7 @@ export default function LendingScreen() {
       return;
     }
     if (selectedBreakdown && parsed > selectedBreakdown.outstanding) {
-      Alert.alert('Invalid payment', `Amount cannot be higher than remaining balance (${formatAmount(selectedBreakdown.outstanding, selectedDetail.request.currency)}).`);
+      Alert.alert('Invalid payment', `Amount cannot be higher than remaining balance (${formatAmount(selectedBreakdown.outstanding, selectedDetail.request.currency)})`);
       return;
     }
 
@@ -277,7 +284,7 @@ export default function LendingScreen() {
         amount: parseFloat(editAmount) || 0,
         interestRate: parseFloat(editInterestRate) || 0,
         termMonths: parseInt(editTermMonths, 10) || 1,
-        dueDate: editDueDate.trim() ? shiftIsoDateByMonths(editDueDate.trim(), 1) : undefined,
+        dueDate: editDueDate.trim() ? addMonthsWithDayClamp(editDueDate.trim(), 1) : undefined,
         penaltyRate: parseFloat(editPenaltyRate) || 0,
         referenceNumber: editReference.trim() || undefined,
         note: editNote.trim() || undefined,
@@ -310,7 +317,7 @@ export default function LendingScreen() {
     if (!selectedDetail || !selectedBreakdown) return;
     const installment = selectedBreakdown.installments.find((i) => i.month === month);
     if (!installment) return;
-    const remaining = Math.max(0, installment.targetAmount - installment.paidAmount + installment.penaltyAmount);
+    const remaining = Math.max(0, (installment.targetAmount + installment.penaltyAmount) - installment.paidAmount);
     if (remaining <= 0) return;
     try {
       await recordLendingPayment(selectedDetail.request.id, remaining, undefined, `Installment month ${month} marked paid`);
@@ -335,7 +342,7 @@ export default function LendingScreen() {
       <FlatList
         data={requests}
         keyExtractor={(r) => r.id}
-        contentContainerStyle={[styles.list, { paddingBottom: Math.max(120, insets.bottom + 96) }]}
+        contentContainerStyle={[styles.list, { paddingBottom: Math.max(MIN_LIST_BOTTOM_PADDING, insets.bottom + FAB_CLEARANCE) }]}
         ListEmptyComponent={<Text style={[styles.empty, isDark && { color: darkText }]}>No settlement requests yet.</Text>}
         renderItem={({ item }) => {
           const payments = paymentsByRequest[item.id] ?? [];

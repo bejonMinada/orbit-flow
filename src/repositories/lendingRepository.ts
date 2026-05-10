@@ -262,7 +262,7 @@ export async function recordLendingPayment(
   const breakdown = computeLendingBreakdown(request, payments);
   if (breakdown.outstanding <= 0) throw new Error('This lending request is already fully paid.');
   if (amountPaid > breakdown.outstanding) {
-    throw new Error(`Payment cannot exceed remaining balance of ${formatAmount(breakdown.outstanding, request.currency)}.`);
+    throw new Error(`Payment cannot exceed remaining balance of ${formatAmount(breakdown.outstanding, request.currency)}`);
   }
 
   const paymentAmount = amountPaid;
