@@ -127,19 +127,32 @@ export function computeLendingBreakdown(
   const accruedInterest = Math.max(0, earnedInterestGross - interestPaid);
   const futureInterest = Math.max(0, interestRemaining - accruedInterest);
 
+  // Pre-allocate totalPaid across installments (FIFO / sequential) using a
+  // hashmap so that each month's paid amount is computed once and compared with
+  // a small tolerance to avoid floating-point precision issues.
+  // PAID_TOLERANCE (1e-9) is well below any real-currency sub-cent threshold
+  // (~0.001) so it only absorbs IEEE-754 rounding noise, not real shortfalls.
+  const PAID_TOLERANCE = 1e-9;
+  const paidByMonth = new Map<number, number>();
+  let unallocated = totalPaid;
+  for (let m = 1; m <= termMonths; m += 1) {
+    const allocated = Math.min(monthlyDue, unallocated);
+    paidByMonth.set(m, allocated);
+    unallocated = Math.max(0, unallocated - allocated);
+  }
+
   const installments: LendingInstallment[] = [];
-  let expectedPaidCumulative = 0;
   for (let i = 0; i < termMonths; i += 1) {
     const dueDate = addMonths(firstDue, i);
-    expectedPaidCumulative += monthlyDue;
-    const paidTowardsThisInstallment = Math.max(0, Math.min(monthlyDue, totalPaid - (expectedPaidCumulative - monthlyDue)));
+    const paidTowardsThisInstallment = paidByMonth.get(i + 1) ?? 0;
     const unpaidInstallment = Math.max(0, monthlyDue - paidTowardsThisInstallment);
     const overdueDays = getDayDiff(dueDate, asOf);
     const penaltyAmount = overdueDays > 0 && unpaidInstallment > 0
       ? unpaidInstallment * (request.penaltyRate / 100) * overdueDays
       : 0;
+    const isPaid = paidTowardsThisInstallment + PAID_TOLERANCE >= monthlyDue;
     const status: InstallmentStatus =
-      paidTowardsThisInstallment >= monthlyDue
+      isPaid
         ? 'paid'
         : overdueDays > 0
           ? 'overdue'

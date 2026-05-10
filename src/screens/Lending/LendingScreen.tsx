@@ -13,7 +13,7 @@ import {
   getLendingPayments,
   recordLendingPayment,
   updateLendingRequestDetails,
-  deleteApprovedLendingRequest,
+  deleteLendingRequest,
 } from '../../repositories/lendingRepository';
 import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepository';
 import { LendingPayment, LendingRequest, Ledger, LendingStatus } from '../../types';
@@ -356,10 +356,11 @@ export default function LendingScreen() {
     );
   };
 
-  const deleteSettlementItem = async () => {
-    if (!selectedDetail) return;
+  const deleteSettlementItem = async (request?: LendingRequest) => {
+    const target = request ?? selectedDetail?.request;
+    if (!target) return;
     try {
-      await deleteApprovedLendingRequest(selectedDetail.request.id);
+      await deleteLendingRequest(target.id);
       setDetailModalVisible(false);
       setSelectedDetail(null);
       await load();
@@ -370,12 +371,29 @@ export default function LendingScreen() {
 
   const confirmDeleteSettlementItem = () => {
     if (!selectedDetail) return;
+    const isPending = selectedDetail.request.status === 'pending_admin_approval';
     Alert.alert(
       'Delete settlement item?',
-      'This will remove this approved settlement item and return the released amount to its ledger balance.',
+      isPending
+        ? 'This will permanently remove this pending request.'
+        : 'This will remove this approved settlement item and return the released amount to its ledger balance.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: deleteSettlementItem },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteSettlementItem() },
+      ]
+    );
+  };
+
+  const confirmDeleteFromList = (request: LendingRequest) => {
+    const isPending = request.status === 'pending_admin_approval';
+    Alert.alert(
+      'Delete settlement item?',
+      isPending
+        ? 'This will permanently remove this pending request.'
+        : 'This will remove this approved settlement item and return the released amount to its ledger balance.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteSettlementItem(request) },
       ]
     );
   };
@@ -438,7 +456,23 @@ export default function LendingScreen() {
           const payments = paymentsByRequest[item.id] ?? [];
           const breakdown = computeLendingBreakdown(item, payments);
           return (
-            <TouchableOpacity style={[styles.card, isDark && { backgroundColor: darkSurface }]} onPress={() => handleAction(item)}>
+            <TouchableOpacity
+              style={[styles.card, isDark && { backgroundColor: darkSurface }]}
+              onPress={() => handleAction(item)}
+              onLongPress={() => {
+                if (item.status === 'pending_admin_approval' || item.status === 'approved') {
+                  Alert.alert(
+                    'Manage Request',
+                    `${item.borrowerName} – ${STATUS_LABEL[item.status]}`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Edit', onPress: () => openEdit(item) },
+                      { text: 'Delete', style: 'destructive', onPress: () => confirmDeleteFromList(item) },
+                    ]
+                  );
+                }
+              }}
+            >
               <View style={styles.cardTop}>
                 <Text style={[styles.borrowerName, isDark && { color: darkText }]}>{item.borrowerName}</Text>
                 <View style={[styles.badge, { backgroundColor: STATUS_COLOR[item.status] }]}>
@@ -554,12 +588,12 @@ export default function LendingScreen() {
                   <Text style={[styles.headerActionBtnText, isDark && { color: '#F1F5F9' }]}>Add Payment</Text>
                 </TouchableOpacity>
               ) : null}
-              {selectedDetail?.request.status === 'approved' ? (
+              {selectedDetail?.request.status === 'approved' || selectedDetail?.request.status === 'pending_admin_approval' ? (
                 <TouchableOpacity style={[styles.headerEditBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => openEdit(selectedDetail.request)}>
                   <Text style={[styles.headerEditBtnText, isDark && { color: darkText }]}>Edit</Text>
                 </TouchableOpacity>
               ) : null}
-              {selectedDetail?.request.status === 'approved' ? (
+              {selectedDetail?.request.status === 'approved' || selectedDetail?.request.status === 'pending_admin_approval' ? (
                 <TouchableOpacity style={styles.headerDeleteBtn} onPress={confirmDeleteSettlementItem}>
                   <Text style={styles.headerDeleteBtnText}>Delete</Text>
                 </TouchableOpacity>
