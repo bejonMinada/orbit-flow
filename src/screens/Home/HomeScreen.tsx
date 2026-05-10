@@ -7,12 +7,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
 import {
-  getLedgers, getLedgerBalance, getDashboardChartData, getNetTrendData, TrendRange,
+  getDashboardChartData, getNetTrendData, TrendRange,
 } from '../../repositories/ledgerRepository';
 import { getLendingRequests } from '../../repositories/lendingRepository';
 import { getItemTrackers } from '../../repositories/itemRepository';
 import { formatAmount } from '../../data/currencies';
-import { Ledger, LendingRequest } from '../../types';
+import { LendingRequest } from '../../types';
 import { RootTabParamList } from '../../navigation/BottomTabNavigator';
 import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
 import { SYSTEM_CATEGORIES } from '../../data/categories';
@@ -23,6 +23,7 @@ import { useThemeMode } from '../../theme/ThemeContext';
 const STATUS_LABEL: Record<LendingRequest['status'], string> = {
   pending_admin_approval: 'Pending Admin Approval',
   approved: 'Approved',
+  in_progress: 'In Progress',
   declined: 'Declined',
   settled: 'Settled',
 };
@@ -30,6 +31,7 @@ const STATUS_LABEL: Record<LendingRequest['status'], string> = {
 const STATUS_STYLE: Record<LendingRequest['status'], { color: string }> = {
   pending_admin_approval: { color: Colors.warning },
   approved: { color: Colors.approved },
+  in_progress: { color: Colors.secondary },
   declined: { color: Colors.declined },
   settled: { color: Colors.settled },
 };
@@ -175,8 +177,6 @@ export default function HomeScreen() {
   const darkSurface = '#1F252F';
   const darkText = '#E6E9EE';
   const darkMuted = '#B8C2D1';
-  const [ledgers, setLedgers] = useState<Ledger[]>([]);
-  const [ledgerBalances, setLedgerBalances] = useState<Record<string, number>>({});
   const [lendingRequests, setLendingRequests] = useState<LendingRequest[]>([]);
   const [trackerCount, setTrackerCount] = useState(0);
   const [trackedItemCount, setTrackedItemCount] = useState(0);
@@ -196,26 +196,18 @@ export default function HomeScreen() {
     try {
       const currentBaseCurrency = await getWorkspaceBaseCurrency();
       setBaseCurrency(currentBaseCurrency);
-      const [ls, lrs, trackers, chart, trend] = await Promise.all([
-        getLedgers(),
+      const [lrs, trackers, chart, trend] = await Promise.all([
         getLendingRequests(),
         getItemTrackers(),
         getDashboardChartData(currentBaseCurrency),
         getNetTrendData(currentBaseCurrency, trendRange),
       ]);
 
-      setLedgers(ls);
       setLendingRequests(lrs);
       setTrackerCount(trackers.length);
       setTrackedItemCount(trackers.reduce((count, tracker) => count + tracker.items.length, 0));
       setChartData(chart);
       setTrendPoints(trend);
-
-      const balances = await Promise.all(
-        ls.map(async (ledger) => [ledger.id, await getLedgerBalance(ledger.id, ledger.baseCurrency)] as const)
-      );
-      const nextLedgerBalances = Object.fromEntries(balances);
-      setLedgerBalances(nextLedgerBalances);
     } catch (_) {}
   }, [trendRange]);
 
@@ -224,7 +216,6 @@ export default function HomeScreen() {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
   const lendingMetrics = useMemo(() => getLendingMetrics(lendingRequests), [lendingRequests]);
   const outstandingLabel = useMemo(() => formatLendingOutstanding(lendingRequests), [lendingRequests]);
-  const maxIncomeCategoryAmount = chartData.incomeCategoryBreakdown.length > 0 ? chartData.incomeCategoryBreakdown[0].total : 0;
   const maxExpenseCategoryAmount = chartData.expenseCategoryBreakdown.length > 0 ? chartData.expenseCategoryBreakdown[0].total : 0;
   const netCardColor = chartData.netBalance < 0 ? Colors.danger : (chartData.netBalance === 0 ? Colors.settled : Colors.primary);
 
@@ -303,32 +294,10 @@ export default function HomeScreen() {
         <NetTrendLine points={trendPoints} currency={baseCurrency} />
       </View>
 
-      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Top Savings Categories</Text>
-      <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
-        <CategoryBars breakdown={chartData.incomeCategoryBreakdown} maxAmount={maxIncomeCategoryAmount} currency={baseCurrency} />
-      </View>
-
       <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Top Spending Categories</Text>
       <View style={[styles.chartCard, isDark && { backgroundColor: darkSurface }]}>
         <CategoryBars breakdown={chartData.expenseCategoryBreakdown} maxAmount={maxExpenseCategoryAmount} currency={baseCurrency} />
       </View>
-
-      <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Recent Ledgers</Text>
-      {ledgers.length === 0 ? (
-        <Text style={[styles.empty, isDark && { color: darkMuted }]}>No ledgers yet. Go to Cash Ledgers to add one.</Text>
-      ) : (
-        ledgers.slice(0, 3).map((l) => (
-          <View key={l.id} style={[styles.ledgerCard, isDark && { backgroundColor: darkSurface }]}>
-            <View>
-              <Text style={[styles.ledgerName, isDark && { color: darkText }]}>{l.name}</Text>
-              <Text style={[styles.ledgerCurrency, isDark && { color: darkMuted }]}>{l.baseCurrency}</Text>
-            </View>
-            <Text style={[styles.ledgerBalance, { color: (ledgerBalances[l.id] ?? 0) >= 0 ? Colors.cashIn : Colors.cashOut }]}>
-              {formatAmount(ledgerBalances[l.id] ?? 0, l.baseCurrency)}
-            </Text>
-          </View>
-        ))
-      )}
 
       <Text style={[styles.sectionTitle, isDark && { color: darkText }]}>Settlement Snapshot</Text>
       {lendingRequests.length === 0 ? (
@@ -441,15 +410,6 @@ const styles = StyleSheet.create({
   rangeChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   rangeChipText: { fontSize: FontSize.xs, color: Colors.textSecondary, textTransform: 'capitalize', fontWeight: '600' },
   rangeChipTextActive: { color: '#fff' },
-  ledgerCard: {
-    backgroundColor: Colors.surface, borderRadius: Radius.md,
-    padding: Spacing.md, marginBottom: Spacing.sm, flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-  },
-  ledgerName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
-  ledgerCurrency: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  ledgerBalance: { fontSize: FontSize.md, fontWeight: '700' },
   lendingCard: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,

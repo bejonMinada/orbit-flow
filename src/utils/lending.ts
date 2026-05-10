@@ -182,7 +182,7 @@ export function getLendingMetrics(requests: LendingRequest[]): LendingMetrics {
       summary.pendingCount += 1;
     }
 
-    if (request.status === 'approved') {
+    if (request.status === 'approved' || request.status === 'in_progress') {
       summary.approvedCount += 1;
       summary.outstandingAmount += request.amount;
     }
@@ -202,7 +202,7 @@ export function getLendingMetrics(requests: LendingRequest[]): LendingMetrics {
 
 export function formatLendingOutstanding(requests: LendingRequest[]): string {
   const totals = requests.reduce<Record<string, number>>((summary, request) => {
-    if (request.status !== 'approved') return summary;
+    if (request.status !== 'approved' && request.status !== 'in_progress') return summary;
     summary[request.currency] = (summary[request.currency] ?? 0) + request.amount;
     return summary;
   }, {});

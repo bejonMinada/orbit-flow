@@ -127,9 +127,26 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       Alert.alert('No items yet', 'Add items first before generating a checklist.');
       return;
     }
-    const session = await createShoppingSession(trackerId, `${route.params.trackerName} • ${new Date().toISOString().slice(0, 10)}`);
-    setExpandedSessionId(session.id);
-    await load();
+    const listItems = items.filter((item) => item.quantity > 0);
+    if (listItems.length === 0) {
+      Alert.alert('No items to generate', 'Set at least one item quantity above 0 before generating a shopping list.');
+      return;
+    }
+    const totalQty = listItems.reduce((sum, item) => sum + item.quantity, 0);
+    const summaryLines = listItems.slice(0, 8).map((item) => `• ${item.name}: ${item.quantity} ${item.unit}`);
+    const hasMore = listItems.length > 8 ? `\n…and ${listItems.length - 8} more item(s).` : '';
+    const summary = `Review your shopping list before generating:\n\n${summaryLines.join('\n')}${hasMore}\n\nTotal items: ${listItems.length}\nTotal quantity: ${totalQty}`;
+    Alert.alert('Generate shopping list?', summary, [
+      { text: 'Review', style: 'cancel' },
+      {
+        text: 'Generate',
+        onPress: async () => {
+          const session = await createShoppingSession(trackerId, `${route.params.trackerName} • ${new Date().toISOString().slice(0, 10)}`);
+          setExpandedSessionId(session.id);
+          await load();
+        },
+      },
+    ]);
   };
 
   const markPurchased = async (sessionItem: ShoppingSessionItem) => {
@@ -333,6 +350,10 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 
   return (
     <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
+      <View style={[styles.pageHeader, isDark && { backgroundColor: '#12161D', borderBottomColor: darkBorder }, { paddingTop: insets.top + Spacing.sm }]}>
+        <Text style={[styles.pageHeaderTitle, isDark && { color: darkText }]}>{route.params.trackerName}</Text>
+        <Text style={[styles.pageHeaderSubtitle, isDark && { color: darkMuted }]}>Manage inventory quantities and shopping lists</Text>
+      </View>
       <View style={styles.searchBar}>
         <TextInput
           style={[styles.searchInput, isDark && { backgroundColor: darkSurface, borderColor: darkBorder, color: darkText }]}
@@ -564,7 +585,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
                               <View style={{ flex: 1 }}>
                                 <Text style={[styles.checkItemName, isDark && { color: darkText }]}>{sessionItem.itemName}</Text>
                                 <Text style={[styles.checkItemMeta, isDark && { color: darkMuted }]}>
-                                  {sessionItem.plannedQuantity} {sessionItem.unit} · {sessionItem.status.replace('_', ' ')}
+                                  {sessionItem.plannedQuantity} {sessionItem.unit} · {sessionItem.status.replace(/_/g, ' ')}
                                 </Text>
                                 {sessionItem.alternativeItemName ? (
                                   <Text style={styles.altText}>Alternative: {sessionItem.alternativeItemName}</Text>
@@ -676,7 +697,10 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  searchBar: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+  pageHeader: { backgroundColor: Colors.surface, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  pageHeaderTitle: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700' },
+  pageHeaderSubtitle: { color: Colors.textSecondary, fontSize: FontSize.sm, marginTop: 4 },
+  searchBar: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
   searchInput: {
     flex: 1,
     borderWidth: 1,

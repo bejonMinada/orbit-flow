@@ -24,7 +24,7 @@ export default function ItemizedNavigator() {
       }}
     >
       <Stack.Screen name="ItemizedList" component={ItemizedListScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="ItemTrackerDetail" component={ItemTrackerDetailScreen} options={({ route }) => ({ title: route.params.trackerName })} />
+      <Stack.Screen name="ItemTrackerDetail" component={ItemTrackerDetailScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

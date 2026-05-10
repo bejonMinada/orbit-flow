@@ -117,6 +117,7 @@ export interface ShoppingSessionItem {
 export type LendingStatus =
   | 'pending_admin_approval'
   | 'approved'
+  | 'in_progress'
   | 'declined'
   | 'settled';
 
