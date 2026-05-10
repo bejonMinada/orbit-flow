@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   fullScreenHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginLeft: Spacing.md },
   headerActionBtn: { minHeight: 34, paddingHorizontal: Spacing.sm, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   headerActionBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '700' },
-  headerEditBtn: { minHeight: 34, paddingHorizontal: Spacing.sm, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  headerEditBtn: { minHeight: 40, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   headerEditBtnText: { color: Colors.textSecondary, fontSize: FontSize.xs, fontWeight: '700' },
   fullScreenContent: { flex: 1, borderRadius: Radius.lg },
   modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, maxHeight: '90%' },

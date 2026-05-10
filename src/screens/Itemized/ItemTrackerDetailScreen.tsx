@@ -42,6 +42,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const [sessionItemsBySession, setSessionItemsBySession] = useState<Record<string, ShoppingSessionItem[]>>({});
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [revealedSessionItemId, setRevealedSessionItemId] = useState<string | null>(null);
+  const [revealedSessionDeleteId, setRevealedSessionDeleteId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('pcs');
@@ -252,6 +253,16 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       outOfStock: list.filter((entry) => entry.status === 'out_of_stock').length,
     };
   };
+  const getSessionTotal = (sessionId: string) => {
+    const list = sessionItemsBySession[sessionId] ?? [];
+    return list.reduce((sum, sessionItem) => {
+      const tracked = sessionItem.trackedItemId
+        ? items.find((item) => item.id === sessionItem.trackedItemId)
+        : items.find((item) => item.name.trim().toLowerCase() === sessionItem.itemName.trim().toLowerCase());
+      if (!tracked) return sum;
+      return sum + ((sessionItem.plannedQuantity || 0) * (tracked.lastPrice || 0));
+    }, 0);
+  };
 
   const openTrackedItemEditor = (item: TrackedItem) => {
     setTrackedItemToEdit(item);
@@ -320,24 +331,6 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
         data={filteredItems}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: Math.max(MIN_LIST_BOTTOM_PADDING, insets.bottom + FAB_CLEARANCE) }]}
-        ListFooterComponent={(
-          <View style={styles.checklistSectionFooter}>
-            <View style={styles.checklistHeader}>
-              <Text style={[styles.checklistTitle, isDark && { color: darkText }]}>Shopping Checklist</Text>
-              <View style={styles.checklistActions}>
-                <TouchableOpacity style={styles.generateBtn} onPress={generateChecklist}>
-                  <Text style={styles.generateBtnText}>Generate List</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.savedBtn} onPress={() => setSavedListsVisible(true)}>
-                  <Text style={styles.savedBtnText}>Saved Lists</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <Text style={[styles.emptyMini, isDark && { color: darkMuted }]}>
-              {sessions.length === 0 ? 'No checklist history yet.' : `${sessions.length} saved list${sessions.length > 1 ? 's' : ''}. Tap “Saved Lists” to view.`}
-            </Text>
-          </View>
-        )}
         ListEmptyComponent={<Text style={styles.empty}>{items.length === 0 ? 'No items yet. Tap + to add one.' : 'No items matched your search.'}</Text>}
         renderItem={({ item }) => (
           <TouchableOpacity style={[styles.card, isDark && { backgroundColor: darkSurface }]} onLongPress={() => openTrackedItemActions(item)} activeOpacity={0.9}>
@@ -360,6 +353,23 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
           </TouchableOpacity>
         )}
       />
+
+      <View style={[styles.pinnedChecklistSection, isDark && { backgroundColor: darkSurface }, { bottom: insets.bottom + Spacing.lg }]}>
+        <View style={styles.checklistHeader}>
+          <Text style={[styles.checklistTitle, isDark && { color: darkText }]}>Shopping Checklist</Text>
+          <View style={styles.checklistActions}>
+            <TouchableOpacity style={styles.generateBtn} onPress={generateChecklist}>
+              <Text style={styles.generateBtnText}>Generate List</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.savedBtn} onPress={() => setSavedListsVisible(true)}>
+              <Text style={styles.savedBtnText}>Saved Lists</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <Text style={[styles.emptyMini, isDark && { color: darkMuted }]}>
+          {sessions.length === 0 ? 'No checklist history yet.' : `${sessions.length} saved list${sessions.length > 1 ? 's' : ''}. Tap “Saved Lists” to view.`}
+        </Text>
+      </View>
 
       <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]} onPress={() => setModalVisible(true)}>
         <Text style={styles.fabText}>+</Text>
@@ -495,7 +505,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
                 const sessionList = sessionItemsBySession[session.id] ?? [];
                 const { purchased, outOfStock } = getSessionProgress(session.id);
                 return (
-                  <View key={session.id}>
+                  <View key={session.id} style={styles.savedSessionBlock}>
                     <View style={styles.savedListGroup}>
                       <TouchableOpacity
                         style={[
@@ -506,14 +516,19 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
                         onPress={() => {
                           setExpandedSessionId((prev) => (prev === session.id ? null : session.id));
                           setRevealedSessionItemId(null);
+                          setRevealedSessionDeleteId(null);
                         }}
+                        onLongPress={() => setRevealedSessionDeleteId((prev) => (prev === session.id ? null : session.id))}
                       >
                         <Text style={styles.savedListRowText}>{session.title}</Text>
                         <Text style={styles.savedListRowMeta}>{completed ? 'Completed' : 'In progress'}</Text>
+                        <Text style={styles.savedListRowMeta}>Total: {formatAmount(getSessionTotal(session.id), currency)}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.savedDeleteBtn, isDark && { backgroundColor: '#4B1E1E' }]} onPress={() => confirmDeleteSavedList(session)}>
-                        <Text style={styles.savedDeleteBtnText}>Delete</Text>
-                      </TouchableOpacity>
+                      {revealedSessionDeleteId === session.id ? (
+                        <TouchableOpacity style={[styles.savedDeleteBtn, isDark && { backgroundColor: '#4B1E1E' }]} onPress={() => confirmDeleteSavedList(session)}>
+                          <Text style={styles.savedDeleteBtnText}>Delete</Text>
+                        </TouchableOpacity>
+                      ) : null}
                     </View>
                     {expanded ? (
                       <View style={[styles.checklistCard, isDark && { backgroundColor: darkSurface }]}>
@@ -660,7 +675,21 @@ const styles = StyleSheet.create({
   },
   checklistHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, marginTop: Spacing.sm },
   checklistActions: { flexDirection: 'row', gap: Spacing.xs },
-  checklistSectionFooter: { marginTop: Spacing.md, marginBottom: Spacing.sm },
+  pinnedChecklistSection: {
+    position: 'absolute',
+    left: Spacing.md,
+    right: 86,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   checklistTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textPrimary },
   generateBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: 6 },
   generateBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },
@@ -715,6 +744,7 @@ const styles = StyleSheet.create({
   savedCloseBtnText: { color: Colors.textSecondary, fontWeight: '700' },
   savedListsScroll: { flex: 1, marginTop: Spacing.xs },
   savedListsContent: { paddingBottom: Spacing.md, paddingTop: Spacing.sm },
+  savedSessionBlock: { marginBottom: Spacing.md },
   savedListGroup: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.xs },
   savedListRow: { flex: 1, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm },
   savedListRowPending: { backgroundColor: '#E8F8F1', borderColor: Colors.primary },
@@ -722,7 +752,7 @@ const styles = StyleSheet.create({
   savedListRowActive: { borderColor: Colors.primaryDark, borderWidth: 2 },
   savedListRowText: { color: Colors.textPrimary, fontSize: FontSize.sm, fontWeight: '700' },
   savedListRowMeta: { color: Colors.textSecondary, fontSize: FontSize.xs, marginTop: 2 },
-  savedDeleteBtn: { backgroundColor: '#FEE2E2', borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm },
+  savedDeleteBtn: { backgroundColor: '#FEE2E2', borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   savedDeleteBtnText: { color: Colors.danger, fontWeight: '700', fontSize: FontSize.xs },
   altModal: { backgroundColor: Colors.surface, margin: Spacing.md, borderRadius: Radius.lg, padding: Spacing.lg },
   modalTitle: { fontSize: FontSize.xl, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: Spacing.sm },

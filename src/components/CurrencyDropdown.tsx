@@ -37,7 +37,7 @@ export default function CurrencyDropdown({
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity style={styles.trigger} onPress={() => setVisible(true)}>
         <Text style={styles.value}>{value}</Text>
-        <Text style={styles.arrow}>v</Text>
+        <Text style={styles.arrow}>▾</Text>
       </TouchableOpacity>
 
       <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
