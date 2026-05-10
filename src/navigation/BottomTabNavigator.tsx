@@ -35,7 +35,7 @@ export default function BottomTabNavigator() {
           paddingBottom: Math.max(insets.bottom, 12),
           paddingTop: 2,
         },
-        tabBarLabelStyle: { fontWeight: '600', marginTop: 0 },
+        tabBarLabelStyle: { fontWeight: '600' },
         tabBarItemStyle: { justifyContent: 'flex-start', paddingTop: 6, paddingBottom: 8 },
         tabBarShowLabel: true,
         tabBarIcon: () => null,

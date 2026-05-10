@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, ScrollView,
 } from 'react-native';
@@ -237,6 +237,10 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     ? items.filter((item) => item.name.toLowerCase().includes(normalizedSearch)
       || item.barcode?.toLowerCase().includes(normalizedSearch))
     : items;
+  const pinnedChecklistStyle = useMemo(
+    () => ({ bottom: insets.bottom + Spacing.lg }),
+    [insets.bottom]
+  );
 
   const getItemPriceLabel = (item: TrackedItem) => {
     const latestPriceRecord = item.priceHistory[item.priceHistory.length - 1];
@@ -355,7 +359,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
         )}
       />
 
-      <View style={[styles.pinnedChecklistSection, isDark && { backgroundColor: darkSurface }, { bottom: insets.bottom + Spacing.lg }]}>
+      <View style={[styles.pinnedChecklistSection, isDark && { backgroundColor: darkSurface }, pinnedChecklistStyle]}>
         <View style={styles.checklistHeader}>
           <Text style={[styles.checklistTitle, isDark && { color: darkText }]}>Shopping Checklist</Text>
           <View style={styles.checklistActions}>
