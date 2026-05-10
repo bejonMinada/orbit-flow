@@ -22,6 +22,7 @@ import { formatAmount } from '../../data/currencies';
 import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 import { getWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
 import CurrencyDropdown from '../../components/CurrencyDropdown';
+import { useThemeMode } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemTrackerDetail'>;
 
@@ -40,9 +41,12 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const [barcode, setBarcode] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [scannerMode, setScannerMode] = useState<'register' | 'search' | null>(null);
+  const [savedListsVisible, setSavedListsVisible] = useState(false);
   const [altPromptVisible, setAltPromptVisible] = useState(false);
   const [pendingOutOfStockItem, setPendingOutOfStockItem] = useState<ShoppingSessionItem | null>(null);
   const [alternativeName, setAlternativeName] = useState('');
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
 
   const load = useCallback(async () => {
     const [its, history, workspaceCurrency] = await Promise.all([
@@ -141,8 +145,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredItems = normalizedSearch
-    ? items.filter((item) => item.name.toLowerCase().includes(normalizedSearch)
-      || item.barcode?.toLowerCase().includes(normalizedSearch))
+    ? items.filter((item) => `${item.name} ${item.barcode ?? ''}`.toLowerCase().includes(normalizedSearch))
     : items;
 
   const getItemPriceLabel = (item: TrackedItem) => {
@@ -155,7 +158,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
   const outOfStockCount = sessionItems.filter((item) => item.status === 'out_of_stock').length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
@@ -170,61 +173,18 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 
       <View style={styles.checklistHeader}>
         <Text style={styles.checklistTitle}>Shopping Checklist</Text>
-        <TouchableOpacity style={styles.generateBtn} onPress={generateChecklist}>
-          <Text style={styles.generateBtnText}>Generate List</Text>
-        </TouchableOpacity>
-      </View>
-
-      {sessions.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sessionChips}>
-          {sessions.map((session) => (
-            <TouchableOpacity
-              key={session.id}
-              style={[styles.sessionChip, activeSessionId === session.id && styles.sessionChipActive]}
-              onPress={() => selectSession(session.id)}
-            >
-              <Text style={[styles.sessionChipText, activeSessionId === session.id && styles.sessionChipTextActive]}>
-                {session.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      ) : null}
-
-      {activeSession ? (
-        <View style={styles.checklistCard}>
-          <Text style={styles.checklistMeta}>
-            {activeSession.title} · {purchasedCount} bought · {outOfStockCount} out of stock
-          </Text>
-          {sessionItems.length === 0 ? (
-            <Text style={styles.emptyMini}>No items in this checklist.</Text>
-          ) : (
-            sessionItems.map((sessionItem) => (
-              <View key={sessionItem.id} style={styles.checkItemRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.checkItemName}>{sessionItem.itemName}</Text>
-                  <Text style={styles.checkItemMeta}>
-                    {sessionItem.plannedQuantity} {sessionItem.unit} · {sessionItem.status.replace('_', ' ')}
-                  </Text>
-                  {sessionItem.alternativeItemName ? (
-                    <Text style={styles.altText}>Alternative: {sessionItem.alternativeItemName}</Text>
-                  ) : null}
-                </View>
-                <View style={styles.checkActions}>
-                  <TouchableOpacity style={styles.buyBtn} onPress={() => markPurchased(sessionItem)}>
-                    <Text style={styles.buyBtnText}>Bought</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.outBtn} onPress={() => markOutOfStock(sessionItem)}>
-                    <Text style={styles.outBtnText}>Out</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))
-          )}
+        <View style={styles.checklistActions}>
+          <TouchableOpacity style={styles.generateBtn} onPress={generateChecklist}>
+            <Text style={styles.generateBtnText}>Generate List</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.savedBtn} onPress={() => setSavedListsVisible(true)}>
+            <Text style={styles.savedBtnText}>Saved Lists</Text>
+          </TouchableOpacity>
         </View>
-      ) : (
-        <Text style={styles.emptyMini}>No checklist history yet.</Text>
-      )}
+      </View>
+      <Text style={styles.emptyMini}>
+        {sessions.length === 0 ? 'No checklist history yet.' : `${sessions.length} saved list${sessions.length > 1 ? 's' : ''}. Tap “Saved Lists” to view.`}
+      </Text>
 
       <FlatList
         data={filteredItems}
@@ -326,6 +286,64 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
         </View>
       </Modal>
 
+      <Modal visible={savedListsVisible} transparent animationType="slide" onRequestClose={() => setSavedListsVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Saved Lists</Text>
+            {sessions.length === 0 ? (
+              <Text style={styles.emptyMini}>No checklist history yet.</Text>
+            ) : (
+              <ScrollView style={styles.savedListsScroll} contentContainerStyle={styles.savedListsContent}>
+                {sessions.map((session) => (
+                  <TouchableOpacity
+                    key={session.id}
+                    style={[styles.savedListRow, activeSessionId === session.id && styles.savedListRowActive]}
+                    onPress={() => selectSession(session.id)}
+                  >
+                    <Text style={[styles.savedListRowText, activeSessionId === session.id && styles.savedListRowTextActive]}>{session.title}</Text>
+                  </TouchableOpacity>
+                ))}
+                {activeSession ? (
+                  <View style={styles.checklistCard}>
+                    <Text style={styles.checklistMeta}>
+                      {activeSession.title} · {purchasedCount} bought · {outOfStockCount} out of stock
+                    </Text>
+                    {sessionItems.length === 0 ? (
+                      <Text style={styles.emptyMini}>No items in this checklist.</Text>
+                    ) : (
+                      sessionItems.map((sessionItem) => (
+                        <View key={sessionItem.id} style={styles.checkItemRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.checkItemName}>{sessionItem.itemName}</Text>
+                            <Text style={styles.checkItemMeta}>
+                              {sessionItem.plannedQuantity} {sessionItem.unit} · {sessionItem.status.replace('_', ' ')}
+                            </Text>
+                            {sessionItem.alternativeItemName ? (
+                              <Text style={styles.altText}>Alternative: {sessionItem.alternativeItemName}</Text>
+                            ) : null}
+                          </View>
+                          <View style={styles.checkActions}>
+                            <TouchableOpacity style={styles.buyBtn} onPress={() => markPurchased(sessionItem)}>
+                              <Text style={styles.buyBtnText}>Bought</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.outBtn} onPress={() => markOutOfStock(sessionItem)}>
+                              <Text style={styles.outBtnText}>Out</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                ) : null}
+              </ScrollView>
+            )}
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setSavedListsVisible(false)}>
+              <Text style={styles.cancelText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <BarcodeScannerModal
         visible={scannerMode !== null}
         title={scannerMode === 'register' ? 'Scan item barcode' : 'Search item'}
@@ -358,14 +376,12 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   checklistHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, marginTop: Spacing.sm },
+  checklistActions: { flexDirection: 'row', gap: Spacing.xs },
   checklistTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textPrimary },
   generateBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: 6 },
   generateBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },
-  sessionChips: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs, gap: Spacing.xs },
-  sessionChip: { backgroundColor: Colors.surfaceAlt, borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderWidth: 1, borderColor: Colors.border },
-  sessionChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  sessionChipText: { fontSize: FontSize.xs, color: Colors.textSecondary },
-  sessionChipTextActive: { color: '#fff' },
+  savedBtn: { backgroundColor: Colors.surfaceAlt, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderWidth: 1, borderColor: Colors.border },
+  savedBtnText: { color: Colors.textSecondary, fontSize: FontSize.xs, fontWeight: '600' },
   checklistCard: { marginHorizontal: Spacing.md, marginTop: Spacing.sm, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.sm },
   checklistMeta: { fontSize: FontSize.xs, color: Colors.textSecondary, marginBottom: Spacing.xs },
   checkItemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 6, borderTopWidth: 1, borderTopColor: Colors.border },
@@ -405,6 +421,12 @@ const styles = StyleSheet.create({
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', lineHeight: 32 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, maxHeight: '90%' },
+  savedListsScroll: { maxHeight: 420 },
+  savedListsContent: { paddingBottom: Spacing.md },
+  savedListRow: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm, marginBottom: Spacing.xs },
+  savedListRowActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  savedListRowText: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '600' },
+  savedListRowTextActive: { color: '#fff' },
   altModal: { backgroundColor: Colors.surface, margin: Spacing.md, borderRadius: Radius.lg, padding: Spacing.lg },
   modalTitle: { fontSize: FontSize.xl, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: Spacing.sm },
   fieldLabel: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textSecondary, marginTop: Spacing.sm, marginBottom: 2 },

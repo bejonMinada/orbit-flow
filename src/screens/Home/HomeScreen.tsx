@@ -18,6 +18,7 @@ import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending
 import { SYSTEM_CATEGORIES } from '../../data/categories';
 import AscendingNLogo from '../../components/AscendingNLogo';
 import { getWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
+import { useThemeMode } from '../../theme/ThemeContext';
 
 const STATUS_LABEL: Record<LendingRequest['status'], string> = {
   pending_admin_approval: 'Pending Admin Approval',
@@ -183,6 +184,8 @@ function NetTrendLine({ points, currency }: { points: TrendPoint[]; currency: st
 export default function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const insets = useSafeAreaInsets();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [ledgerBalances, setLedgerBalances] = useState<Record<string, number>>({});
   const [lendingRequests, setLendingRequests] = useState<LendingRequest[]>([]);
@@ -239,14 +242,11 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, isDark && { backgroundColor: '#12161D' }]}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.sm }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={isDark ? '#E6E9EE' : Colors.primary} />}
     >
       <View style={styles.header}>
-        <View style={styles.brandWatermark}>
-          <AscendingNLogo size={60} subtle />
-        </View>
         <View style={styles.brandRow}>
           <View style={styles.logoBadge}>
             <AscendingNLogo size={26} />
@@ -434,7 +434,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   header: { marginBottom: Spacing.lg, position: 'relative' },
-  brandWatermark: { position: 'absolute', right: 0, top: 0 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   logoBadge: {
     width: 52,

@@ -174,6 +174,30 @@ export async function initDb(): Promise<void> {
   await seedDefaultWorkspace(db);
 }
 
+export async function resetAllData(): Promise<void> {
+  const db = getDb();
+  await db.withTransactionAsync(async () => {
+    await db.execAsync('DELETE FROM lending_payments;');
+    await db.execAsync('DELETE FROM lending_requests;');
+    await db.execAsync('DELETE FROM shopping_session_items;');
+    await db.execAsync('DELETE FROM shopping_sessions;');
+    await db.execAsync('DELETE FROM tracked_items;');
+    await db.execAsync('DELETE FROM item_trackers;');
+    await db.execAsync('DELETE FROM entries;');
+    await db.execAsync('DELETE FROM ledger_members;');
+    await db.execAsync('DELETE FROM ledgers;');
+    await db.execAsync('DELETE FROM payment_profiles;');
+    await db.execAsync('DELETE FROM sinking_funds;');
+    await db.execAsync('DELETE FROM op_log;');
+    await db.execAsync('DELETE FROM users;');
+    await db.execAsync('DELETE FROM workspaces;');
+    await db.execAsync('DELETE FROM categories;');
+  });
+
+  await seedCategories(db);
+  await seedDefaultWorkspace(db);
+}
+
 async function addColumnIfMissing(
   db: SQLite.SQLiteDatabase,
   table: string,
