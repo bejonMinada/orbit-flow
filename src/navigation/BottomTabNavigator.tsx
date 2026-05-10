@@ -6,6 +6,7 @@ import LedgersNavigator from './LedgersNavigator';
 import ItemizedNavigator from './ItemizedNavigator';
 import LendingScreen from '../screens/Lending/LendingScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
+import { useThemeMode } from '../theme/ThemeContext';
 
 export type RootTabParamList = {
   Dashboard: undefined;
@@ -18,12 +19,15 @@ export type RootTabParamList = {
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export default function BottomTabNavigator() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
-        tabBarStyle: { backgroundColor: Colors.surface, borderTopColor: Colors.border },
+        tabBarInactiveTintColor: isDark ? '#94A3B8' : Colors.textMuted,
+        tabBarStyle: { backgroundColor: isDark ? '#12161D' : Colors.surface, borderTopColor: isDark ? '#253041' : Colors.border },
+        tabBarLabelStyle: { fontWeight: '600' },
         headerShown: false,
       }}
     >

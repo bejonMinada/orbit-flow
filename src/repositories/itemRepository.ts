@@ -1,9 +1,13 @@
 import { getDb } from '../db/database';
-import { ItemTracker, TrackedItem, PriceRecord } from '../types';
+import {
+  ItemTracker, TrackedItem, PriceRecord, ShoppingSession, ShoppingSessionItem, ShoppingItemStatus,
+} from '../types';
 import { normalizeCurrencyCode } from '../data/currencies';
+import { v4 as uuidv4 } from 'uuid';
 
 function newId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const raw = uuidv4().replace(/-/g, '').slice(0, 10);
+  return `${prefix}_${Date.now()}_${raw}`;
 }
 
 export async function getItemTrackers(): Promise<ItemTracker[]> {
@@ -124,4 +128,112 @@ export async function findByBarcode(barcode: string): Promise<TrackedItem | null
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+type ShoppingSessionRow = {
+  id: string;
+  tracker_id: string;
+  title: string;
+  created_at: string;
+};
+
+type ShoppingSessionItemRow = {
+  id: string;
+  session_id: string;
+  tracked_item_id: string | null;
+  item_name: string;
+  unit: string;
+  planned_quantity: number;
+  status: string;
+  alternative_item_name: string | null;
+  updated_at: string;
+};
+
+function mapSession(row: ShoppingSessionRow): ShoppingSession {
+  return {
+    id: row.id,
+    trackerId: row.tracker_id,
+    title: row.title,
+    createdAt: row.created_at,
+  };
+}
+
+function mapSessionItem(row: ShoppingSessionItemRow): ShoppingSessionItem {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    trackedItemId: row.tracked_item_id ?? undefined,
+    itemName: row.item_name,
+    unit: row.unit,
+    plannedQuantity: row.planned_quantity,
+    status: row.status as ShoppingItemStatus,
+    alternativeItemName: row.alternative_item_name ?? undefined,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function getShoppingSessions(trackerId: string): Promise<ShoppingSession[]> {
+  const db = getDb();
+  const rows = await db.getAllAsync<ShoppingSessionRow>(
+    'SELECT * FROM shopping_sessions WHERE tracker_id = ? ORDER BY created_at DESC',
+    [trackerId]
+  );
+  return rows.map(mapSession);
+}
+
+export async function getShoppingSessionItems(sessionId: string): Promise<ShoppingSessionItem[]> {
+  const db = getDb();
+  const rows = await db.getAllAsync<ShoppingSessionItemRow>(
+    'SELECT * FROM shopping_session_items WHERE session_id = ? ORDER BY item_name ASC',
+    [sessionId]
+  );
+  return rows.map(mapSessionItem);
+}
+
+export async function createShoppingSession(trackerId: string, title?: string): Promise<ShoppingSession> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const id = newId('ss');
+  const safeTitle = title?.trim() || `Checklist ${now.slice(0, 10)}`;
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'INSERT INTO shopping_sessions (id, tracker_id, title, created_at) VALUES (?, ?, ?, ?)',
+      [id, trackerId, safeTitle, now]
+    );
+    const items = await getTrackedItems(trackerId);
+    for (const item of items) {
+      await db.runAsync(
+        `INSERT INTO shopping_session_items
+          (id, session_id, tracked_item_id, item_name, unit, planned_quantity, status, alternative_item_name, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId('ssi'),
+          id,
+          item.id,
+          item.name,
+          item.unit,
+          item.quantity,
+          'pending',
+          null,
+          now,
+        ]
+      );
+    }
+  });
+
+  return { id, trackerId, title: safeTitle, createdAt: now };
+}
+
+export async function updateShoppingSessionItem(
+  sessionItemId: string,
+  status: ShoppingItemStatus,
+  alternativeItemName?: string
+): Promise<void> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'UPDATE shopping_session_items SET status = ?, alternative_item_name = ?, updated_at = ? WHERE id = ?',
+    [status, alternativeItemName?.trim() || null, now, sessionItemId]
+  );
 }

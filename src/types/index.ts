@@ -91,6 +91,27 @@ export interface ItemTracker {
   createdAt: string;
 }
 
+export type ShoppingItemStatus = 'pending' | 'purchased' | 'out_of_stock';
+
+export interface ShoppingSession {
+  id: string;
+  trackerId: string;
+  title: string;
+  createdAt: string;
+}
+
+export interface ShoppingSessionItem {
+  id: string;
+  sessionId: string;
+  trackedItemId?: string;
+  itemName: string;
+  unit: string;
+  plannedQuantity: number;
+  status: ShoppingItemStatus;
+  alternativeItemName?: string;
+  updatedAt: string;
+}
+
 // ─── Credit & Settlement Monitor (Lending) ───────────────────────────────────
 
 export type LendingStatus =
@@ -109,13 +130,28 @@ export interface LendingRequest {
   transactionCode: string;
   referenceNumber: string;
   interestRate: number;
+  termMonths: number;
   dueDate?: string;
   penaltyRate: number;
+  approvedAt?: string;
   proofImageUri?: string;
   status: LendingStatus;
   note?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LendingPayment {
+  id: string;
+  lendingRequestId: string;
+  amountPaid: number;
+  appliedPrincipal: number;
+  appliedInterest: number;
+  appliedPenalty: number;
+  cashbackAmount: number;
+  note?: string;
+  paidAt: string;
+  createdAt: string;
 }
 
 // ─── Payment Profiles ────────────────────────────────────────────────────────
