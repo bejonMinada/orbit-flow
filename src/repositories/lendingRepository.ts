@@ -143,6 +143,32 @@ async function insertLedgerEntry(
   );
 }
 
+async function insertCashbackLedgerEntry(
+  db: ReturnType<typeof getDb>,
+  ledgerId: string,
+  amount: number,
+  currency: string,
+  borrowerName: string,
+  transactionCode: string,
+  occurredAt: string
+): Promise<void> {
+  await db.runAsync(
+    'INSERT INTO entries (id, ledger_id, kind, amount, currency, category_id, note, occurred_at, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      newId('e'),
+      ledgerId,
+      'cash_out',
+      amount,
+      currency,
+      'cat_lending',
+      `Cashback returned to ${borrowerName} (TXN: ${transactionCode})`,
+      occurredAt,
+      'local',
+      occurredAt,
+    ]
+  );
+}
+
 async function ensureLendableBalance(ledgerId: string, amount: number, currency: string): Promise<void> {
   const balance = await getLedgerBalanceForCurrency(ledgerId, currency);
   if (amount > balance) {
@@ -315,6 +341,18 @@ export async function recordLendingPayment(
       ref || request.referenceNumber,
       now
     );
+
+    if (cashbackAllocation > 0) {
+      await insertCashbackLedgerEntry(
+        db,
+        request.ledgerId,
+        cashbackAllocation,
+        request.currency,
+        request.borrowerName,
+        request.transactionCode,
+        now
+      );
+    }
 
     const updatedPayments = await getLendingPayments(lendingRequestId);
     const updatedBreakdown = computeLendingBreakdown(request, updatedPayments);

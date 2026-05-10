@@ -11,6 +11,9 @@ import CurrencyDropdown from '../../components/CurrencyDropdown';
 import { getWorkspaceBaseCurrency, updateWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
 import { resetAllData } from '../../db/database';
 
+const HEADER_TEXT_COLOR = '#FFFFFF';
+const HEADER_SUBTEXT_COLOR = 'rgba(255,255,255,0.82)';
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [baseCurrency, setBaseCurrency] = useState('PHP');
@@ -68,10 +71,14 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, isDark && { backgroundColor: '#12161D' }]} contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}>
-      <Text style={[styles.title, isDark && { color: darkText }]}>Settings</Text>
+    <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
+      <View style={[styles.pageHeader, { paddingTop: insets.top + Spacing.md }]}>
+        <Text style={styles.pageHeaderTitle}>Settings</Text>
+        <Text style={styles.pageHeaderSubtitle}>Workspace, sync, and app preferences</Text>
+      </View>
 
-      <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: Spacing.md, paddingBottom: insets.bottom + Spacing.xxl }]}>
+        <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
         <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>Workspace</Text>
         <View style={styles.dropdownWrap}>
           <CurrencyDropdown value={baseCurrency} onChange={handleBaseCurrencyChange} label="Base Currency" popularOnly />
@@ -80,9 +87,9 @@ export default function SettingsScreen() {
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Dark Mode</Text>
           <Switch value={mode === 'dark'} onValueChange={toggleMode} trackColor={{ true: Colors.primary, false: Colors.border }} />
         </View>
-      </View>
+        </View>
 
-      <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
+        <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
         <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>Data & Sync</Text>
         <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={() => Alert.alert('Export', `Export to ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Export Data</Text>
@@ -104,9 +111,9 @@ export default function SettingsScreen() {
           <Text style={[styles.rowLabel, { color: Colors.danger }]}>Reset All Data</Text>
           <Text style={[styles.rowValue, { color: Colors.danger }]}>Danger</Text>
         </TouchableOpacity>
-      </View>
+        </View>
 
-      <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
+        <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
         <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>Features</Text>
         {[
           { label: 'Receipt OCR Autofill', phase: 'Phase 4' },
@@ -120,9 +127,9 @@ export default function SettingsScreen() {
             <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{f.phase}</Text>
           </View>
         ))}
-      </View>
+        </View>
 
-      <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
+        <View style={[styles.section, isDark && { backgroundColor: darkSurface }]}>
         <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>About</Text>
         <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>App Name</Text>
@@ -140,9 +147,9 @@ export default function SettingsScreen() {
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Currencies</Text>
           <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{CURRENCIES.length} supported</Text>
         </View>
-      </View>
+        </View>
 
-      <Modal visible={resetModalVisible} transparent animationType="fade" onRequestClose={() => setResetModalVisible(false)}>
+        <Modal visible={resetModalVisible} transparent animationType="fade" onRequestClose={() => setResetModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, isDark && { backgroundColor: darkSurface }]}>
             <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Final confirmation</Text>
@@ -167,15 +174,18 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.md, paddingBottom: Spacing.xxl },
-  title: { fontSize: FontSize.xxxl, fontWeight: 'bold', color: Colors.primary, marginBottom: Spacing.md },
+  pageHeader: { backgroundColor: Colors.primary, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
+  pageHeaderTitle: { color: HEADER_TEXT_COLOR, fontSize: FontSize.xl, fontWeight: 'bold' },
+  pageHeaderSubtitle: { color: HEADER_SUBTEXT_COLOR, fontSize: FontSize.sm, marginTop: 4 },
+  content: { padding: Spacing.md },
   section: { backgroundColor: Colors.surface, borderRadius: Radius.md, marginBottom: Spacing.md, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 },
   sectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textSecondary, paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border },
