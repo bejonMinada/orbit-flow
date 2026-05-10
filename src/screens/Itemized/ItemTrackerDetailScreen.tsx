@@ -258,16 +258,20 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       outOfStock: list.filter((entry) => entry.status === 'out_of_stock').length,
     };
   };
-  const getSessionTotal = (sessionId: string) => {
-    const list = sessionItemsBySession[sessionId] ?? [];
-    return list.reduce((sum, sessionItem) => {
-      const tracked = sessionItem.trackedItemId
-        ? items.find((item) => item.id === sessionItem.trackedItemId)
-        : items.find((item) => item.name.trim().toLowerCase() === sessionItem.itemName.trim().toLowerCase());
-      if (!tracked) return sum;
-      return sum + ((sessionItem.plannedQuantity || 0) * (tracked.lastPrice || 0));
-    }, 0);
-  };
+  const sessionTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const session of sessions) {
+      const list = sessionItemsBySession[session.id] ?? [];
+      totals[session.id] = list.reduce((sum, sessionItem) => {
+        const tracked = sessionItem.trackedItemId
+          ? items.find((item) => item.id === sessionItem.trackedItemId)
+          : items.find((item) => item.name.trim().toLowerCase() === sessionItem.itemName.trim().toLowerCase());
+        if (!tracked) return sum;
+        return sum + ((sessionItem.plannedQuantity || 0) * (tracked.lastPrice || 0));
+      }, 0);
+    }
+    return totals;
+  }, [sessions, sessionItemsBySession, items]);
 
   const openTrackedItemEditor = (item: TrackedItem) => {
     setTrackedItemToEdit(item);
@@ -527,7 +531,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
                       >
                         <Text style={styles.savedListRowText}>{session.title}</Text>
                         <Text style={styles.savedListRowMeta}>{completed ? 'Completed' : 'In progress'}</Text>
-                        <Text style={styles.savedListRowMeta}>Total: {formatAmount(getSessionTotal(session.id), currency)}</Text>
+                        <Text style={styles.savedListRowMeta}>Total: {formatAmount(sessionTotals[session.id] ?? 0, currency)}</Text>
                       </TouchableOpacity>
                       {revealedSessionDeleteId === session.id ? (
                         <TouchableOpacity style={[styles.savedDeleteBtn, isDark && { backgroundColor: '#4B1E1E' }]} onPress={() => confirmDeleteSavedList(session)}>
