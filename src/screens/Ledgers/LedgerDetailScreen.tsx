@@ -94,7 +94,7 @@ export default function LedgerDetailScreen({ route, navigation }: Props) {
         keyExtractor={(e) => e.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={<Text style={styles.empty}>No transactions yet.</Text>}
-          renderItem={({ item }) => (
+        renderItem={({ item }) => (
           <TouchableOpacity style={styles.entry} onPress={() => openEditor(item)} onLongPress={() => handleDelete(item.id)}>
             <View style={[styles.kindDot, { backgroundColor: item.kind === 'cash_in' ? Colors.cashIn : Colors.cashOut }]} />
             <View style={styles.entryMid}>
