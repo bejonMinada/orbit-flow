@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Colors } from '../constants';
 import ItemizedListScreen from '../screens/Itemized/ItemizedListScreen';
 import ItemTrackerDetailScreen from '../screens/Itemized/ItemTrackerDetailScreen';
+import { useThemeMode } from '../theme/ThemeContext';
 
 export type ItemizedStackParamList = {
   ItemizedList: undefined;
@@ -12,10 +13,12 @@ export type ItemizedStackParamList = {
 const Stack = createNativeStackNavigator<ItemizedStackParamList>();
 
 export default function ItemizedNavigator() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: Colors.primary },
+        headerStyle: { backgroundColor: isDark ? '#1F252F' : Colors.primary },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
       }}

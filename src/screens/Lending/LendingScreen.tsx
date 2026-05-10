@@ -53,6 +53,8 @@ export default function LendingScreen() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [processingInstallmentMonth, setProcessingInstallmentMonth] = useState<number | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editBorrowerName, setEditBorrowerName] = useState('');
   const [editAmount, setEditAmount] = useState('');
@@ -244,7 +246,7 @@ export default function LendingScreen() {
   }, [selectedDetail]);
 
   const submitPayment = async () => {
-    if (!selectedDetail) return;
+    if (!selectedDetail || savingPayment) return;
     const parsed = parseFloat(paymentAmount);
     if (!Number.isFinite(parsed) || parsed <= 0) {
       Alert.alert('Invalid payment', 'Please enter a valid payment amount.');
@@ -256,6 +258,7 @@ export default function LendingScreen() {
     }
 
     try {
+      setSavingPayment(true);
       await recordLendingPayment(
         selectedDetail.request.id,
         parsed,
@@ -273,6 +276,8 @@ export default function LendingScreen() {
       await load();
     } catch (error) {
       Alert.alert('Unable to record payment', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setSavingPayment(false);
     }
   };
 
@@ -314,12 +319,13 @@ export default function LendingScreen() {
   };
 
   const markInstallmentPaid = async (month: number) => {
-    if (!selectedDetail || !selectedBreakdown) return;
+    if (!selectedDetail || !selectedBreakdown || processingInstallmentMonth !== null) return;
     const installment = selectedBreakdown.installments.find((i) => i.month === month);
     if (!installment) return;
     const remaining = Math.max(0, (installment.targetAmount + installment.penaltyAmount) - installment.paidAmount);
     if (remaining <= 0) return;
     try {
+      setProcessingInstallmentMonth(month);
       await recordLendingPayment(selectedDetail.request.id, remaining, undefined, `Installment month ${month} marked paid`);
       const updatedRequest = (await getLendingRequests()).find((request) => request.id === selectedDetail.request.id) ?? selectedDetail.request;
       const updatedPayments = await getLendingPayments(selectedDetail.request.id);
@@ -327,6 +333,8 @@ export default function LendingScreen() {
       await load();
     } catch (error) {
       Alert.alert('Unable to update installment', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setProcessingInstallmentMonth(null);
     }
   };
 
@@ -437,9 +445,21 @@ export default function LendingScreen() {
         <View style={[styles.fullScreenModal, isDark && { backgroundColor: '#12161D' }, { paddingTop: insets.top + Spacing.sm, paddingBottom: insets.bottom + Spacing.md }]}>
           <View style={styles.fullScreenHeader}>
             <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Settlement Details</Text>
-            <TouchableOpacity style={styles.cancelBtnTight} onPress={() => setDetailModalVisible(false)}>
-              <Text style={styles.cancelText}>Close</Text>
-            </TouchableOpacity>
+            <View style={styles.fullScreenHeaderRight}>
+              {selectedDetail?.request.status === 'approved' ? (
+                <TouchableOpacity style={styles.headerActionBtn} onPress={() => setPaymentModalVisible(true)}>
+                  <Text style={styles.headerActionBtnText}>Add Payment</Text>
+                </TouchableOpacity>
+              ) : null}
+              {selectedDetail ? (
+                <TouchableOpacity style={styles.headerEditBtn} onPress={() => openEdit(selectedDetail.request)}>
+                  <Text style={styles.headerEditBtnText}>Edit</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity style={styles.cancelBtnTight} onPress={() => setDetailModalVisible(false)}>
+                <Text style={styles.cancelText}>Close</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <ScrollView
             style={[styles.modalBox, styles.fullScreenContent, isDark && { backgroundColor: darkSurface }]}
@@ -473,8 +493,14 @@ export default function LendingScreen() {
                       Status: {installment.status}
                     </Text>
                     {selectedDetail.request.status === 'approved' && installment.status !== 'paid' ? (
-                      <TouchableOpacity style={styles.markPaidBtn} onPress={() => markInstallmentPaid(installment.month)}>
-                        <Text style={styles.markPaidBtnText}>Mark Paid</Text>
+                      <TouchableOpacity
+                        style={[styles.markPaidBtn, processingInstallmentMonth === installment.month && styles.disabledBtn]}
+                        onPress={() => markInstallmentPaid(installment.month)}
+                        disabled={processingInstallmentMonth !== null}
+                      >
+                        <Text style={styles.markPaidBtnText}>
+                          {processingInstallmentMonth === installment.month ? 'Processing...' : 'Mark Paid'}
+                        </Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>
@@ -499,14 +525,6 @@ export default function LendingScreen() {
                   ))
                 )}
 
-                {selectedDetail.request.status === 'approved' ? (
-                  <TouchableOpacity style={styles.createBtn} onPress={() => setPaymentModalVisible(true)}>
-                    <Text style={styles.createText}>Add Payment</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity style={[styles.editBtn, { marginBottom: Spacing.md }]} onPress={() => openEdit(selectedDetail.request)}>
-                  <Text style={styles.editBtnText}>Edit Details</Text>
-                </TouchableOpacity>
               </>
             )}
           </ScrollView>
@@ -527,8 +545,8 @@ export default function LendingScreen() {
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setPaymentModalVisible(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.createBtn} onPress={submitPayment}>
-                <Text style={styles.createText}>Save Payment</Text>
+              <TouchableOpacity style={[styles.createBtn, savingPayment && styles.disabledBtn]} onPress={submitPayment} disabled={savingPayment}>
+                <Text style={styles.createText}>{savingPayment ? 'Saving...' : 'Save Payment'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -607,7 +625,12 @@ const styles = StyleSheet.create({
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', lineHeight: 32 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   fullScreenModal: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.md },
-  fullScreenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fullScreenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.sm },
+  fullScreenHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginLeft: Spacing.md },
+  headerActionBtn: { minHeight: 34, paddingHorizontal: Spacing.sm, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  headerActionBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '700' },
+  headerEditBtn: { minHeight: 34, paddingHorizontal: Spacing.sm, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  headerEditBtnText: { color: Colors.textSecondary, fontSize: FontSize.xs, fontWeight: '700' },
   fullScreenContent: { flex: 1, borderRadius: Radius.lg },
   modalBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, maxHeight: '90%' },
   settleBox: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, margin: Spacing.md, borderRadius: Radius.xl },
@@ -627,6 +650,7 @@ const styles = StyleSheet.create({
   cancelText: { color: Colors.textSecondary, fontWeight: '600' },
   createBtn: { flex: 1, minHeight: 48, paddingHorizontal: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   createText: { color: '#fff', fontWeight: '600' },
+  disabledBtn: { opacity: 0.65 },
   editBtn: { marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center' },
   editBtnText: { color: Colors.textSecondary, fontWeight: '600' },
   sectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textSecondary, marginTop: Spacing.md, marginBottom: Spacing.xs },

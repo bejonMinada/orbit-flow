@@ -8,11 +8,19 @@ import { createEntry } from '../../repositories/ledgerRepository';
 import { LedgersStackParamList } from '../../navigation/LedgersNavigator';
 import { SYSTEM_CATEGORIES } from '../../data/categories';
 import { EntryKind } from '../../types';
+import { useThemeMode } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<LedgersStackParamList, 'AddEntry'>;
 
 export default function AddEntryScreen({ route, navigation }: Props) {
   const { ledgerId, currency } = route.params;
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkSurfaceAlt = '#2A3240';
+  const darkBorder = '#334155';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
   const [kind, setKind] = useState<EntryKind>('cash_out');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -29,49 +37,51 @@ export default function AddEntryScreen({ route, navigation }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.label}>Type</Text>
+    <ScrollView style={[styles.container, isDark && { backgroundColor: '#12161D' }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <Text style={[styles.label, isDark && { color: darkMuted }]}>Type</Text>
       <View style={styles.toggle}>
         {(['cash_in', 'cash_out'] as EntryKind[]).map((k) => (
           <TouchableOpacity
             key={k}
-            style={[styles.toggleBtn, kind === k && { backgroundColor: k === 'cash_in' ? Colors.cashIn : Colors.cashOut }]}
+            style={[styles.toggleBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }, kind === k && { backgroundColor: k === 'cash_in' ? Colors.cashIn : Colors.cashOut }]}
             onPress={() => setKind(k)}
           >
-            <Text style={[styles.toggleText, kind === k && styles.toggleTextActive]}>
+            <Text style={[styles.toggleText, isDark && { color: darkMuted }, kind === k && styles.toggleTextActive]}>
               {k === 'cash_in' ? 'Cash In' : 'Cash Out'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.label}>Amount ({currency})</Text>
+      <Text style={[styles.label, isDark && { color: darkMuted }]}>Amount ({currency})</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, isDark && { backgroundColor: darkSurface, borderColor: darkBorder, color: darkText }]}
         placeholder="0.00"
+        placeholderTextColor={isDark ? darkMuted : undefined}
         keyboardType="decimal-pad"
         value={amount}
         onChangeText={setAmount}
       />
 
-      <Text style={styles.label}>Note</Text>
+      <Text style={[styles.label, isDark && { color: darkMuted }]}>Note</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, isDark && { backgroundColor: darkSurface, borderColor: darkBorder, color: darkText }]}
         placeholder="Optional note"
+        placeholderTextColor={isDark ? darkMuted : undefined}
         value={note}
         onChangeText={setNote}
       />
 
-      <Text style={styles.label}>Category</Text>
+      <Text style={[styles.label, isDark && { color: darkMuted }]}>Category</Text>
       <View style={styles.categories}>
         {SYSTEM_CATEGORIES.map((cat) => (
           <TouchableOpacity
             key={cat.id}
-            style={[styles.catChip, categoryId === cat.id && { backgroundColor: cat.color }]}
+            style={[styles.catChip, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }, categoryId === cat.id && { backgroundColor: cat.color }]}
             onPress={() => setCategoryId(cat.id)}
           >
-            <Text style={styles.catEmoji}>{cat.icon}</Text>
-            <Text style={[styles.catName, categoryId === cat.id && { color: '#fff' }]}>{cat.name}</Text>
+            <Text style={[styles.catEmoji, isDark && { backgroundColor: darkSurface }]}>{cat.icon}</Text>
+            <Text style={[styles.catName, isDark && { color: darkMuted }, categoryId === cat.id && { color: '#fff' }]}>{cat.name}</Text>
           </TouchableOpacity>
         ))}
       </View>

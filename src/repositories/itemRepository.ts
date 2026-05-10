@@ -107,6 +107,66 @@ export async function updateTrackedItemQuantity(id: string, quantity: number): P
   );
 }
 
+export async function updateTrackedItemDetails(
+  id: string,
+  updates: {
+    name: string;
+    unit: string;
+    quantity: number;
+    price: number;
+    currency: string;
+    barcode?: string;
+  }
+): Promise<void> {
+  const db = getDb();
+  const existing = await db.getFirstAsync<{ id: string; tracker_id: string; price_history: string }>(
+    'SELECT id, tracker_id, price_history FROM tracked_items WHERE id = ? LIMIT 1',
+    [id]
+  );
+  if (!existing) throw new Error('Tracked item not found.');
+  const duplicate = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM tracked_items WHERE tracker_id = ? AND LOWER(name) = LOWER(?) AND id != ?',
+    [existing.tracker_id, updates.name.trim(), id]
+  );
+  if ((duplicate?.count ?? 0) > 0) {
+    throw new Error(`An item named "${updates.name.trim()}" already exists in this tracker. Please choose a different name.`);
+  }
+
+  const now = new Date().toISOString();
+  const safeCurrency = normalizeCurrencyCode(updates.currency);
+  const previousHistory = JSON.parse(existing.price_history || '[]') as PriceRecord[];
+  const shouldAppendPrice = previousHistory.length === 0
+    || previousHistory[previousHistory.length - 1].price !== updates.price
+    || previousHistory[previousHistory.length - 1].currency !== safeCurrency;
+  const nextHistory = shouldAppendPrice
+    ? [...previousHistory, { price: updates.price, currency: safeCurrency, at: now }]
+    : previousHistory;
+
+  await db.runAsync(
+    `UPDATE tracked_items
+      SET name = ?, barcode = ?, unit = ?, quantity = ?, last_price = ?, price_history = ?, updated_at = ?
+      WHERE id = ?`,
+    [
+      updates.name.trim(),
+      updates.barcode?.trim() || null,
+      updates.unit.trim() || 'pcs',
+      Math.max(0, updates.quantity),
+      Math.max(0, updates.price),
+      JSON.stringify(nextHistory),
+      now,
+      id,
+    ]
+  );
+}
+
+export async function deleteTrackedItem(id: string): Promise<void> {
+  const db = getDb();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM shopping_session_items WHERE tracked_item_id = ?', [id]);
+    await db.runAsync('DELETE FROM tracked_items WHERE id = ?', [id]);
+  });
+}
+
 export async function findByBarcode(barcode: string): Promise<TrackedItem | null> {
   const db = getDb();
   const row = await db.getFirstAsync<{

@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput, Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Spacing, Radius, FontSize } from '../../constants';
 import { getLedgers, createLedger, deleteLedger, getLedgerBalance } from '../../repositories/ledgerRepository';
@@ -11,10 +12,18 @@ import { Ledger } from '../../types';
 import { LedgersStackParamList } from '../../navigation/LedgersNavigator';
 import { formatAmount } from '../../data/currencies';
 import CurrencyDropdown from '../../components/CurrencyDropdown';
+import { useThemeMode } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<LedgersStackParamList, 'LedgersList'>;
 
 export default function LedgersListScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+  const darkSurface = '#1F252F';
+  const darkBorder = '#334155';
+  const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [modalVisible, setModalVisible] = useState(false);
@@ -62,21 +71,21 @@ export default function LedgersListScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
       <FlatList
         data={ledgers}
         keyExtractor={(l) => l.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No ledgers yet. Tap + to create one.</Text>}
+        ListEmptyComponent={<Text style={[styles.empty, isDark && { color: darkMuted }]}>No ledgers yet. Tap + to create one.</Text>}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.card}
+            style={[styles.card, isDark && { backgroundColor: darkSurface }]}
             onPress={() => navigation.navigate('LedgerDetail', { ledgerId: item.id, ledgerName: item.name, currency: item.baseCurrency })}
             onLongPress={() => handleDelete(item.id, item.name)}
           >
             <View style={styles.cardLeft}>
-              <Text style={styles.cardName}>{item.name}</Text>
-              <Text style={styles.cardCurrency}>{item.baseCurrency}</Text>
+              <Text style={[styles.cardName, isDark && { color: darkText }]}>{item.name}</Text>
+              <Text style={[styles.cardCurrency, isDark && { color: darkMuted }]}>{item.baseCurrency}</Text>
             </View>
             <Text style={[styles.cardBalance, { color: (balances[item.id] ?? 0) >= 0 ? Colors.cashIn : Colors.cashOut }]}>
               {formatAmount(balances[item.id] ?? 0, item.baseCurrency)}
@@ -85,19 +94,19 @@ export default function LedgersListScreen({ navigation }: Props) {
         )}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => { setNewCurrency(baseCurrency); setModalVisible(true); }}>
+      <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]} onPress={() => { setNewCurrency(baseCurrency); setModalVisible(true); }}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>New Cash Ledger</Text>
-            <TextInput style={styles.input} placeholder="Ledger name" value={newName} onChangeText={setNewName} />
+          <View style={[styles.modalBox, isDark && { backgroundColor: darkSurface }]}>
+            <Text style={[styles.modalTitle, isDark && { color: darkText }]}>New Cash Ledger</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurface, borderColor: darkBorder, color: darkText }]} placeholder="Ledger name" placeholderTextColor={isDark ? darkMuted : undefined} value={newName} onChangeText={setNewName} />
             <CurrencyDropdown value={newCurrency} onChange={setNewCurrency} label="Currency" />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: darkSurface, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => setModalVisible(false)}>
+                <Text style={[styles.cancelText, isDark && { color: darkMuted }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={handleAdd}>
                 <Text style={styles.createText}>Create</Text>
