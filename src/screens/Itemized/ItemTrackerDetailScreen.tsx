@@ -238,7 +238,11 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       || item.barcode?.toLowerCase().includes(normalizedSearch))
     : items;
   const pinnedChecklistStyle = useMemo(
-    () => ({ bottom: insets.bottom + Spacing.lg + FAB_SIZE + Spacing.sm }),
+    () => ({
+      bottom: insets.bottom + Spacing.lg,
+      left: Spacing.md,
+      right: Spacing.lg + FAB_SIZE + Spacing.sm,
+    }),
     [insets.bottom]
   );
 
@@ -681,17 +685,16 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.textPrimary,
   },
-  checklistHeader: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.md, marginTop: Spacing.xs },
-  checklistActions: { flexDirection: 'row', gap: Spacing.xs, justifyContent: 'center', marginTop: Spacing.xs },
+  checklistHeader: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.sm, marginTop: Spacing.xs },
+  checklistActions: { flexDirection: 'row', gap: Spacing.xs, justifyContent: 'center', marginTop: Spacing.xs, paddingHorizontal: Spacing.xs },
   pinnedChecklistSection: {
     position: 'absolute',
-    left: Spacing.md,
-    right: Spacing.md,
     borderRadius: Radius.md,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
     paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,

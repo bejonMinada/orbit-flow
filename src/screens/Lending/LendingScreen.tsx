@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, ScrollView,
 } from 'react-native';
@@ -15,7 +15,7 @@ import {
 } from '../../repositories/lendingRepository';
 import { getLedgers, getLedgerBalance } from '../../repositories/ledgerRepository';
 import { LendingPayment, LendingRequest, Ledger, LendingStatus } from '../../types';
-import { formatAmount } from '../../data/currencies';
+import { formatAmount, getCurrency } from '../../data/currencies';
 import { computeLendingBreakdown } from '../../utils/lending';
 import { useThemeMode } from '../../theme/ThemeContext';
 
@@ -55,6 +55,7 @@ export default function LendingScreen() {
   const [paymentNote, setPaymentNote] = useState('');
   const [savingPayment, setSavingPayment] = useState(false);
   const [processingInstallmentMonth, setProcessingInstallmentMonth] = useState<number | null>(null);
+  const installmentLockSetRef = useRef<Set<string>>(new Set());
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editBorrowerName, setEditBorrowerName] = useState('');
   const [editAmount, setEditAmount] = useState('');
@@ -90,6 +91,11 @@ export default function LendingScreen() {
     const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
     shifted.setDate(Math.min(day, lastDay));
     return shifted.toISOString().slice(0, 10);
+  };
+
+  const getSettlementThreshold = (currency: string): number => {
+    const minorUnits = getCurrency(currency)?.minorUnits ?? 2;
+    return 1 / (10 ** minorUnits);
   };
 
   const load = useCallback(async () => {
@@ -322,20 +328,37 @@ export default function LendingScreen() {
 
   const markInstallmentPaid = async (month: number) => {
     if (!selectedDetail || !selectedBreakdown || processingInstallmentMonth !== null) return;
-    const installment = selectedBreakdown.installments.find((i) => i.month === month);
-    if (!installment) return;
-    const remaining = Math.max(0, (installment.targetAmount + installment.penaltyAmount) - installment.paidAmount);
-    if (remaining <= 0) return;
+    const requestId = selectedDetail.request.id;
+    const lockKey = `${requestId}:${month}`;
+    if (installmentLockSetRef.current.has(lockKey)) return;
+
     try {
+      installmentLockSetRef.current.add(lockKey);
       setProcessingInstallmentMonth(month);
-      await recordLendingPayment(selectedDetail.request.id, remaining, undefined, `Installment month ${month} marked paid`);
-      const updatedRequest = (await getLendingRequests()).find((request) => request.id === selectedDetail.request.id) ?? selectedDetail.request;
-      const updatedPayments = await getLendingPayments(selectedDetail.request.id);
+      const latestRequests = await getLendingRequests();
+      const latestRequest = latestRequests.find((request) => request.id === requestId) ?? selectedDetail.request;
+      const latestPayments = await getLendingPayments(requestId);
+      const latestBreakdown = computeLendingBreakdown(latestRequest, latestPayments);
+      const installment = latestBreakdown.installments.find((i) => i.month === month);
+      if (!installment) return;
+
+      const threshold = getSettlementThreshold(latestRequest.currency);
+      const remainingRaw = Math.max(0, (installment.targetAmount + installment.penaltyAmount) - installment.paidAmount);
+      const remaining = remainingRaw <= threshold ? 0 : remainingRaw;
+      if (remaining <= 0) {
+        setSelectedDetail({ request: latestRequest, payments: latestPayments });
+        return;
+      }
+
+      await recordLendingPayment(requestId, remaining, undefined, `Installment month ${month} marked paid`);
+      const updatedRequest = (await getLendingRequests()).find((request) => request.id === requestId) ?? latestRequest;
+      const updatedPayments = await getLendingPayments(requestId);
       setSelectedDetail({ request: updatedRequest, payments: updatedPayments });
       await load();
     } catch (error) {
       Alert.alert('Unable to update installment', error instanceof Error ? error.message : 'Please try again.');
     } finally {
+      installmentLockSetRef.current.delete(lockKey);
       setProcessingInstallmentMonth(null);
     }
   };
@@ -486,26 +509,36 @@ export default function LendingScreen() {
 
                 <Text style={styles.sectionTitle}>Monthly Breakdown</Text>
                 {selectedBreakdown.installments.map((installment) => (
-                  <View key={`${selectedDetail.request.id}_${installment.month}`} style={styles.installmentCard}>
-                    <Text style={styles.installmentTitle}>Month {installment.month} • Due {installment.dueDate}</Text>
-                    <Text style={styles.installmentMeta}>Due: {formatAmount(installment.targetAmount, selectedDetail.request.currency)}</Text>
-                    <Text style={styles.installmentMeta}>Paid: {formatAmount(installment.paidAmount, selectedDetail.request.currency)}</Text>
-                    <Text style={styles.installmentMeta}>Penalty: {formatAmount(installment.penaltyAmount, selectedDetail.request.currency)}</Text>
-                    <Text style={[styles.installmentStatus, installment.status === 'overdue' && styles.overdueText]}>
-                      Status: {installment.status}
-                    </Text>
-                    {selectedDetail.request.status === 'approved' && installment.status !== 'paid' ? (
-                      <TouchableOpacity
-                        style={[styles.markPaidBtn, processingInstallmentMonth === installment.month && styles.disabledBtn]}
-                        onPress={() => markInstallmentPaid(installment.month)}
-                        disabled={processingInstallmentMonth !== null}
-                      >
-                        <Text style={styles.markPaidBtnText}>
-                          {processingInstallmentMonth === installment.month ? 'Processing...' : 'Mark Paid'}
+                  (() => {
+                    const threshold = getSettlementThreshold(selectedDetail.request.currency);
+                    const remaining = Math.max(0, (installment.targetAmount + installment.penaltyAmount) - installment.paidAmount);
+                    const actionable = remaining > threshold;
+                    const shouldShowMarkPaid = selectedDetail.request.status === 'approved'
+                      && installment.status !== 'paid'
+                      && actionable;
+                    return (
+                      <View key={`${selectedDetail.request.id}_${installment.month}`} style={styles.installmentCard}>
+                        <Text style={styles.installmentTitle}>Month {installment.month} • Due {installment.dueDate}</Text>
+                        <Text style={styles.installmentMeta}>Due: {formatAmount(installment.targetAmount, selectedDetail.request.currency)}</Text>
+                        <Text style={styles.installmentMeta}>Paid: {formatAmount(installment.paidAmount, selectedDetail.request.currency)}</Text>
+                        <Text style={styles.installmentMeta}>Penalty: {formatAmount(installment.penaltyAmount, selectedDetail.request.currency)}</Text>
+                        <Text style={[styles.installmentStatus, installment.status === 'overdue' && styles.overdueText]}>
+                          Status: {installment.status}
                         </Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
+                        {shouldShowMarkPaid ? (
+                          <TouchableOpacity
+                            style={[styles.markPaidBtn, processingInstallmentMonth === installment.month && styles.disabledBtn]}
+                            onPress={() => markInstallmentPaid(installment.month)}
+                            disabled={processingInstallmentMonth !== null}
+                          >
+                            <Text style={styles.markPaidBtnText}>
+                              {processingInstallmentMonth === installment.month ? 'Processing...' : 'Mark Paid'}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    );
+                  })()
                 ))}
 
                 <Text style={styles.sectionTitle}>Transactions</Text>

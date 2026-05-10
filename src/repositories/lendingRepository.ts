@@ -286,8 +286,9 @@ export async function recordLendingPayment(
 
   const payments = await getLendingPayments(lendingRequestId);
   const breakdown = computeLendingBreakdown(request, payments);
+  const settlementThreshold = getSettlementThreshold(request.currency);
   if (breakdown.outstanding <= 0) throw new Error('This lending request is already fully paid.');
-  if (amountPaid > breakdown.outstanding) {
+  if (amountPaid - breakdown.outstanding > settlementThreshold) {
     throw new Error(`Payment cannot exceed remaining balance of ${formatAmount(breakdown.outstanding, request.currency)}`);
   }
 
@@ -302,9 +303,17 @@ export async function recordLendingPayment(
   const interestAllocation = accruedInterestAllocation + futureInterestAllocation;
 
   let cashbackAllocation = 0;
-  const isEarlyFullPrincipalPayment = principalAllocation >= breakdown.principalRemaining && breakdown.cashbackIfPaidInFull > 0;
-  if (isEarlyFullPrincipalPayment) {
-    cashbackAllocation = Math.max(0, breakdown.cashbackIfPaidInFull - futureInterestAllocation);
+  const principalRemainingAfter = Math.max(0, breakdown.principalRemaining - principalAllocation);
+  const accruedInterestAfter = Math.max(0, breakdown.accruedInterest - accruedInterestAllocation);
+  const penaltiesAfter = Math.max(0, breakdown.penalties - penaltyAllocation);
+  const futureInterestAfter = Math.max(0, breakdown.futureInterest - futureInterestAllocation);
+  const settlesLoan =
+    principalRemainingAfter <= settlementThreshold
+    && accruedInterestAfter <= settlementThreshold
+    && penaltiesAfter <= settlementThreshold
+    && futureInterestAfter <= settlementThreshold;
+  if (settlesLoan && breakdown.cashbackIfPaidInFull > 0 && futureInterestAllocation > settlementThreshold) {
+    cashbackAllocation = breakdown.cashbackIfPaidInFull;
   }
 
   const now = new Date().toISOString();

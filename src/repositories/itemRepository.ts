@@ -48,6 +48,22 @@ export async function deleteItemTracker(id: string): Promise<void> {
   await db.runAsync('DELETE FROM tracked_items WHERE tracker_id = ?', [id]);
 }
 
+export async function updateItemTrackerName(id: string, name: string): Promise<void> {
+  const db = getDb();
+  const trimmedName = name.trim();
+  if (!trimmedName) throw new Error('Inventory name is required.');
+
+  const existing = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM item_trackers WHERE LOWER(name) = LOWER(?) AND id != ?',
+    [trimmedName, id]
+  );
+  if ((existing?.count ?? 0) > 0) {
+    throw new Error(`An inventory named "${trimmedName}" already exists. Please choose a different name.`);
+  }
+
+  await db.runAsync('UPDATE item_trackers SET name = ? WHERE id = ?', [trimmedName, id]);
+}
+
 export async function getTrackedItems(trackerId: string): Promise<TrackedItem[]> {
   const db = getDb();
   const rows = await db.getAllAsync<{
