@@ -253,7 +253,9 @@ export async function recordLendingPayment(
   const db = getDb();
   const request = await getLendingRequestById(lendingRequestId);
   if (!request) throw new Error('Lending request not found.');
-  if (request.status !== 'approved') throw new Error('Only approved requests can receive payments.');
+  if (request.status !== 'approved' && request.status !== 'in_progress') {
+    throw new Error('Only approved or in-progress requests can receive payments.');
+  }
   if (!Number.isFinite(amountPaid) || amountPaid <= 0) throw new Error('Please enter a valid payment amount.');
 
   const payments = await getLendingPayments(lendingRequestId);
@@ -311,7 +313,7 @@ export async function recordLendingPayment(
     const updatedPayments = await getLendingPayments(lendingRequestId);
     const updatedBreakdown = computeLendingBreakdown(request, updatedPayments);
     const nextStatus: LendingStatus =
-      updatedBreakdown.outstanding <= getSettlementThreshold(request.currency) ? 'settled' : 'approved';
+      updatedBreakdown.outstanding <= getSettlementThreshold(request.currency) ? 'settled' : 'in_progress';
     await db.runAsync(
       'UPDATE lending_requests SET status = ?, reference_number = ?, updated_at = ? WHERE id = ?',
       [nextStatus, ref || request.referenceNumber, now, lendingRequestId]
@@ -353,8 +355,8 @@ export async function updateLendingStatus(id: string, status: LendingStatus, ref
   }
 
   if (status === 'settled') {
-    if (request.status !== 'approved') {
-      throw new Error('Only approved requests can be settled.');
+    if (request.status !== 'approved' && request.status !== 'in_progress') {
+      throw new Error('Only approved or in-progress requests can be settled.');
     }
     const payments = await getLendingPayments(id);
     const breakdown = computeLendingBreakdown(request, payments);
@@ -397,6 +399,9 @@ export async function updateLendingRequestDetails(
   const db = getDb();
   const request = await getLendingRequestById(id);
   if (!request) throw new Error('Lending request not found.');
+  if (request.status !== 'approved') {
+    throw new Error('Only approved settlement requests can be edited.');
+  }
   if (!Number.isFinite(updates.amount) || updates.amount <= 0) {
     throw new Error('Please enter a valid loan amount greater than zero.');
   }

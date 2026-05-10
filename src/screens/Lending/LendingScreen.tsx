@@ -23,6 +23,7 @@ import { useThemeMode } from '../../theme/ThemeContext';
 const STATUS_COLOR: Record<LendingStatus, string> = {
   pending_admin_approval: Colors.warning,
   approved: Colors.approved,
+  in_progress: Colors.secondary,
   declined: Colors.declined,
   settled: Colors.settled,
 };
@@ -30,6 +31,7 @@ const STATUS_COLOR: Record<LendingStatus, string> = {
 const STATUS_LABEL: Record<LendingStatus, string> = {
   pending_admin_approval: 'Pending',
   approved: 'Approved',
+  in_progress: 'In Progress',
   declined: 'Declined',
   settled: 'Settled',
 };
@@ -142,14 +144,16 @@ export default function LendingScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const lendingMetrics = useMemo(() => {
     const pendingCount = requests.filter((request) => request.status === 'pending_admin_approval').length;
-    const approvedCount = requests.filter((request) => request.status === 'approved').length;
+    const approvedCount = requests.filter(
+      (request) => request.status === 'approved' || request.status === 'in_progress'
+    ).length;
     const settledCount = requests.filter((request) => request.status === 'settled').length;
     return { pendingCount, approvedCount, settledCount };
   }, [requests]);
 
   const outstandingLabel = useMemo(() => {
     const totals = requests.reduce<Record<string, number>>((summary, request) => {
-      if (request.status !== 'approved') return summary;
+      if (request.status !== 'approved' && request.status !== 'in_progress') return summary;
       const payments = paymentsByRequest[request.id] ?? [];
       const amount = computeLendingBreakdown(request, payments).outstanding;
       summary[request.currency] = (summary[request.currency] ?? 0) + amount;
@@ -517,12 +521,12 @@ export default function LendingScreen() {
           <View style={styles.fullScreenHeader}>
             <Text style={[styles.modalTitle, isDark && { color: darkText }]}>Settlement Details</Text>
             <View style={styles.fullScreenHeaderRight}>
-              {selectedDetail?.request.status === 'approved' ? (
+              {selectedDetail?.request.status === 'approved' || selectedDetail?.request.status === 'in_progress' ? (
                 <TouchableOpacity style={[styles.headerActionBtn, isDark && { backgroundColor: Colors.primaryDark }]} onPress={() => setPaymentModalVisible(true)}>
                   <Text style={[styles.headerActionBtnText, isDark && { color: '#F1F5F9' }]}>Add Payment</Text>
                 </TouchableOpacity>
               ) : null}
-              {selectedDetail ? (
+              {selectedDetail?.request.status === 'approved' ? (
                 <TouchableOpacity style={[styles.headerEditBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => openEdit(selectedDetail.request)}>
                   <Text style={[styles.headerEditBtnText, isDark && { color: darkText }]}>Edit</Text>
                 </TouchableOpacity>
@@ -554,7 +558,7 @@ export default function LendingScreen() {
                     const threshold = getSettlementThreshold(selectedDetail.request.currency);
                     const remaining = Math.max(0, (installment.targetAmount + installment.penaltyAmount) - installment.paidAmount);
                     const actionable = remaining > threshold;
-                    const shouldShowMarkPaid = selectedDetail.request.status === 'approved'
+                    const shouldShowMarkPaid = (selectedDetail.request.status === 'approved' || selectedDetail.request.status === 'in_progress')
                       && installment.status !== 'paid'
                       && actionable;
                     return (
