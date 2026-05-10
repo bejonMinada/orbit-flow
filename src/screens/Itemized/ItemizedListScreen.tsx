@@ -20,6 +20,7 @@ export default function ItemizedListScreen({ navigation }: Props) {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
   const darkSurface = '#1F252F';
+  const darkBorder = '#334155';
   const darkText = '#E6E9EE';
   const darkMuted = '#B8C2D1';
   const [trackers, setTrackers] = useState<ItemTracker[]>([]);
@@ -54,7 +55,7 @@ export default function ItemizedListScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
-      <View style={[styles.pageHeader, isDark && { backgroundColor: '#12161D' }, { paddingTop: insets.top + Spacing.sm }]}>
+      <View style={[styles.pageHeader, isDark && { backgroundColor: '#12161D', borderBottomColor: darkBorder }, { paddingTop: insets.top + Spacing.sm }]}>
         <Text style={[styles.pageHeaderTitle, isDark && { color: darkText }]}>{Labels.itemizedTrackers}</Text>
         <Text style={[styles.pageHeaderSubtitle, isDark && { color: darkMuted }]}>Organize itemized inventories and monitor stock counts</Text>
       </View>
