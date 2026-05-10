@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, ScrollView, Platform,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, ScrollView,
 } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, FontSize, Labels } from '../../constants';
@@ -62,7 +61,7 @@ export default function LendingScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editInterestRate, setEditInterestRate] = useState('');
   const [editTermMonths, setEditTermMonths] = useState('1');
-  const [editBorrowedDate, setEditBorrowedDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
   const [editPenaltyRate, setEditPenaltyRate] = useState('');
   const [editReference, setEditReference] = useState('');
   const [editNote, setEditNote] = useState('');
@@ -71,12 +70,10 @@ export default function LendingScreen() {
   const [amount, setAmount] = useState('');
   const [interestRate, setInterestRate] = useState('');
   const [termMonths, setTermMonths] = useState('1');
-  const [borrowedDate, setBorrowedDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [penaltyRate, setPenaltyRate] = useState('');
   const [note, setNote] = useState('');
   const [selectedLedgerId, setSelectedLedgerId] = useState('');
-  const [showBorrowedDatePicker, setShowBorrowedDatePicker] = useState(false);
-  const [showEditBorrowedDatePicker, setShowEditBorrowedDatePicker] = useState(false);
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
   const darkSurface = '#1F252F';
@@ -85,22 +82,8 @@ export default function LendingScreen() {
   const darkText = '#E6E9EE';
   const darkMuted = '#B8C2D1';
 
-  function formatLocalDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  function parseLocalDate(dateValue: string): Date {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
-    if (!match) return new Date(dateValue);
-    const [, year, month, day] = match;
-    return new Date(Number(year), Number(month) - 1, Number(day));
-  }
-
   const addMonthsWithDayClamp = (dateValue: string, months: number): string => {
-    const parsed = parseLocalDate(dateValue);
+    const parsed = new Date(dateValue);
     if (Number.isNaN(parsed.getTime())) return dateValue;
     const day = parsed.getDate();
     const shifted = new Date(parsed);
@@ -108,25 +91,7 @@ export default function LendingScreen() {
     shifted.setMonth(shifted.getMonth() + months);
     const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
     shifted.setDate(Math.min(day, lastDay));
-    return formatLocalDate(shifted);
-  };
-
-  const handleBorrowedDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowBorrowedDatePicker(false);
-    }
-    if (event.type === 'set' && selectedDate) {
-      setBorrowedDate(formatLocalDate(selectedDate));
-    }
-  };
-
-  const handleEditBorrowedDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowEditBorrowedDatePicker(false);
-    }
-    if (event.type === 'set' && selectedDate) {
-      setEditBorrowedDate(formatLocalDate(selectedDate));
-    }
+    return shifted.toISOString().slice(0, 10);
   };
 
   const getSettlementThreshold = (currency: string): number => {
@@ -176,34 +141,34 @@ export default function LendingScreen() {
     setAmount('');
     setInterestRate('');
     setTermMonths('1');
-    setBorrowedDate('');
+    setDueDate('');
     setPenaltyRate('');
     setNote('');
   };
 
   const handleAdd = async () => {
     if (!borrowerName.trim() || !amount.trim() || !selectedLedgerId) {
-      Alert.alert('Missing fields', 'Please fill in borrower’s name, amount and select a ledger.');
+      Alert.alert('Missing fields', 'Please fill in borrower name, amount and select a ledger.');
       return;
     }
     const parsedAmount = parseFloat(amount);
     const parsedInterest = parseFloat(interestRate) || 0;
     const parsedTerm = parseInt(termMonths, 10);
     const parsedPenalty = parseFloat(penaltyRate) || 0;
-    const trimmedBorrowedDate = borrowedDate.trim() || undefined;
+    const trimmedDueDate = dueDate.trim() || undefined;
 
     if (!Number.isFinite(parsedTerm) || parsedTerm < 1) {
       Alert.alert('Invalid term', 'Repayment term should be at least 1 month.');
       return;
     }
-    if (trimmedBorrowedDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedBorrowedDate)) {
-      Alert.alert('Invalid date', 'Please select a valid borrowed date.');
+    if (trimmedDueDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDueDate)) {
+      Alert.alert('Invalid date', 'Please enter the borrow date in YYYY-MM-DD format.');
       return;
     }
-    if (trimmedBorrowedDate) {
-      const parsed = parseLocalDate(trimmedBorrowedDate);
-      if (isNaN(parsed.getTime()) || formatLocalDate(parsed) !== trimmedBorrowedDate) {
-        Alert.alert('Invalid date', 'Please select a valid borrowed date.');
+    if (trimmedDueDate) {
+      const parsed = new Date(trimmedDueDate);
+      if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trimmedDueDate) {
+        Alert.alert('Invalid date', 'The borrow date is not a valid calendar date. Please check the day and month values.');
         return;
       }
     }
@@ -217,7 +182,7 @@ export default function LendingScreen() {
         ledger?.baseCurrency ?? 'PHP',
         parsedInterest,
         parsedTerm,
-        trimmedBorrowedDate ? addMonthsWithDayClamp(trimmedBorrowedDate, 1) : undefined,
+        trimmedDueDate ? addMonthsWithDayClamp(trimmedDueDate, 1) : undefined,
         parsedPenalty,
         undefined,
         note.trim() || undefined
@@ -242,7 +207,7 @@ export default function LendingScreen() {
     setEditAmount(String(request.amount));
     setEditInterestRate(String(request.interestRate));
     setEditTermMonths(String(request.termMonths));
-    setEditBorrowedDate(request.dueDate ? addMonthsWithDayClamp(request.dueDate, -1) : '');
+    setEditDueDate(request.dueDate ? addMonthsWithDayClamp(request.dueDate, -1) : '');
     setEditPenaltyRate(String(request.penaltyRate));
     setEditReference(request.referenceNumber ?? '');
     setEditNote(request.note ?? '');
@@ -333,7 +298,7 @@ export default function LendingScreen() {
         amount: parseFloat(editAmount) || 0,
         interestRate: parseFloat(editInterestRate) || 0,
         termMonths: parseInt(editTermMonths, 10) || 1,
-        dueDate: editBorrowedDate.trim() ? addMonthsWithDayClamp(editBorrowedDate.trim(), 1) : undefined,
+        dueDate: editDueDate.trim() ? addMonthsWithDayClamp(editDueDate.trim(), 1) : undefined,
         penaltyRate: parseFloat(editPenaltyRate) || 0,
         referenceNumber: editReference.trim() || undefined,
         note: editNote.trim() || undefined,
@@ -465,7 +430,7 @@ export default function LendingScreen() {
               </Text>
             ) : null}
 
-            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Borrower's Name</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Borrower Name</Text>
             <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="Full name" placeholderTextColor={isDark ? darkMuted : undefined} value={borrowerName} onChangeText={setBorrowerName} />
 
             <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Amount</Text>
@@ -481,26 +446,8 @@ export default function LendingScreen() {
               <Text style={[styles.infoHint, isDark && { color: darkText }]}>Estimated monthly due: {getMonthlyPaymentPreview()}</Text>
             ) : null}
 
-            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Date Borrowed (optional)</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.datePickerTrigger, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }]}
-              onPress={() => setShowBorrowedDatePicker(true)}
-              activeOpacity={0.86}
-              accessibilityLabel="Date borrowed field"
-              accessibilityHint="Tap to open calendar picker"
-            >
-              <Text style={[styles.datePickerTriggerText, isDark && { color: darkText }, !borrowedDate && { color: isDark ? darkMuted : Colors.textMuted }]}>
-                {borrowedDate || 'Select date'}
-              </Text>
-            </TouchableOpacity>
-            {showBorrowedDatePicker ? (
-              <DateTimePicker
-                value={borrowedDate ? parseLocalDate(borrowedDate) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                onChange={handleBorrowedDateChange}
-              />
-            ) : null}
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Date Borrowed (YYYY-MM-DD, optional)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="e.g. 2026-12-31" placeholderTextColor={isDark ? darkMuted : undefined} value={dueDate} onChangeText={setDueDate} />
 
             <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Penalty Rate (% per day after missed monthly due)</Text>
             <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="e.g. 0.3" placeholderTextColor={isDark ? darkMuted : undefined} value={penaltyRate} onChangeText={setPenaltyRate} keyboardType="decimal-pad" />
@@ -509,8 +456,8 @@ export default function LendingScreen() {
             <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} placeholder="Optional note" placeholderTextColor={isDark ? darkMuted : undefined} value={note} onChangeText={setNote} />
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.cancelBtn, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, borderWidth: 1 }]} onPress={() => { resetForm(); setModalVisible(false); }}>
-                <Text style={[styles.cancelText, isDark && { color: darkText }]}>Cancel</Text>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => { resetForm(); setModalVisible(false); }}>
+                <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.createBtn} onPress={handleAdd}>
                 <Text style={styles.createText}>Submit</Text>
@@ -643,7 +590,7 @@ export default function LendingScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={[styles.modalBox, styles.fullScreenContent, isDark && { backgroundColor: darkSurface }]} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}>
-            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Borrower's Name</Text>
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Borrower Name</Text>
             <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editBorrowerName} onChangeText={setEditBorrowerName} />
             <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Amount</Text>
             <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editAmount} onChangeText={setEditAmount} keyboardType="decimal-pad" />
@@ -651,26 +598,8 @@ export default function LendingScreen() {
             <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editInterestRate} onChangeText={setEditInterestRate} keyboardType="decimal-pad" />
             <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Term (months)</Text>
             <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editTermMonths} onChangeText={setEditTermMonths} keyboardType="number-pad" />
-            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Date Borrowed</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.datePickerTrigger, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder }]}
-              onPress={() => setShowEditBorrowedDatePicker(true)}
-              activeOpacity={0.86}
-              accessibilityLabel="Date borrowed field"
-              accessibilityHint="Tap to open calendar picker"
-            >
-              <Text style={[styles.datePickerTriggerText, isDark && { color: darkText }, !editBorrowedDate && { color: isDark ? darkMuted : Colors.textMuted }]}>
-                {editBorrowedDate || 'Select date'}
-              </Text>
-            </TouchableOpacity>
-            {showEditBorrowedDatePicker ? (
-              <DateTimePicker
-                value={editBorrowedDate ? parseLocalDate(editBorrowedDate) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                onChange={handleEditBorrowedDateChange}
-              />
-            ) : null}
+            <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Date Borrowed (YYYY-MM-DD)</Text>
+            <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editDueDate} onChangeText={setEditDueDate} />
             <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Penalty Rate (% per day)</Text>
             <TextInput style={[styles.input, isDark && { backgroundColor: darkSurfaceAlt, borderColor: darkBorder, color: darkText }]} value={editPenaltyRate} onChangeText={setEditPenaltyRate} keyboardType="decimal-pad" />
             <Text style={[styles.fieldLabel, isDark && { color: darkMuted }]}>Reference Number</Text>
@@ -738,8 +667,6 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textSecondary, marginTop: Spacing.sm, marginBottom: 2 },
   infoHint: { fontSize: FontSize.xs, color: Colors.primary, marginTop: 2, marginBottom: 2 },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, padding: Spacing.sm, fontSize: FontSize.md, color: Colors.textPrimary },
-  datePickerTrigger: { justifyContent: 'center', minHeight: 46 },
-  datePickerTriggerText: { fontSize: FontSize.md, color: Colors.textPrimary },
   ledgerPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.xs },
   ledgerChip: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.full, backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.border },
   ledgerChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
