@@ -23,7 +23,7 @@ export default function ItemizedNavigator() {
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
-      <Stack.Screen name="ItemizedList" component={ItemizedListScreen} options={{ title: 'Itemized Inventories' }} />
+      <Stack.Screen name="ItemizedList" component={ItemizedListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ItemTrackerDetail" component={ItemTrackerDetailScreen} options={({ route }) => ({ title: route.params.trackerName })} />
     </Stack.Navigator>
   );

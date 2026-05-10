@@ -5,7 +5,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Colors, Spacing, Radius, FontSize } from '../../constants';
+import {
+  Colors, Spacing, Radius, FontSize, Labels,
+} from '../../constants';
 import { getItemTrackers, createItemTracker, deleteItemTracker } from '../../repositories/itemRepository';
 import { ItemTracker } from '../../types';
 import { ItemizedStackParamList } from '../../navigation/ItemizedNavigator';
@@ -17,7 +19,9 @@ export default function ItemizedListScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const darkBackground = '#12161D';
   const darkSurface = '#1F252F';
+  const darkBorder = '#334155';
   const darkText = '#E6E9EE';
   const darkMuted = '#B8C2D1';
   const [trackers, setTrackers] = useState<ItemTracker[]>([]);
@@ -51,7 +55,12 @@ export default function ItemizedListScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
+    <View style={[styles.container, isDark && { backgroundColor: darkBackground }]}>
+      <View style={[styles.pageHeader, isDark && { backgroundColor: darkBackground, borderBottomColor: darkBorder }, { paddingTop: insets.top + Spacing.sm }]}>
+        <Text style={[styles.pageHeaderTitle, isDark && { color: darkText }]}>{Labels.itemizedTrackers}</Text>
+        <Text style={[styles.pageHeaderSubtitle, isDark && { color: darkMuted }]}>Organize itemized inventories and monitor stock counts</Text>
+      </View>
+
       <FlatList
         data={trackers}
         keyExtractor={(t) => t.id}
@@ -95,6 +104,9 @@ export default function ItemizedListScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  pageHeader: { backgroundColor: Colors.surface, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  pageHeaderTitle: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700' },
+  pageHeaderSubtitle: { color: Colors.textSecondary, fontSize: FontSize.sm, marginTop: 4 },
   list: { padding: Spacing.md, paddingBottom: 100 },
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.md,
