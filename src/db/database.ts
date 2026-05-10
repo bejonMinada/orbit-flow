@@ -156,6 +156,12 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   await addColumnIfMissing(db, 'lending_requests', 'interest_rate', 'REAL NOT NULL DEFAULT 0');
   await addColumnIfMissing(db, 'lending_requests', 'due_date', 'TEXT');
   await addColumnIfMissing(db, 'lending_requests', 'penalty_rate', 'REAL NOT NULL DEFAULT 0');
+
+  // Index to speed up category breakdown and income/expense queries
+  await db.execAsync(`
+    CREATE INDEX IF NOT EXISTS idx_entries_kind_currency_category
+      ON entries (kind, currency, category_id);
+  `);
 }
 
 async function seedCategories(db: SQLite.SQLiteDatabase): Promise<void> {

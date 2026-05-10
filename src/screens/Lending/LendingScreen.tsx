@@ -183,7 +183,7 @@ export default function LendingScreen() {
               )}
               {daysOverdue > 0 && (
                 <Text style={styles.overdueText}>
-                  ⚠ {daysOverdue}d overdue · Penalty: {formatAmount(penaltyAmount, item.currency)} ({item.penaltyRate}%/day)
+                  Overdue by {daysOverdue} day{daysOverdue !== 1 ? 's' : ''} · Penalty: {formatAmount(penaltyAmount, item.currency)} ({item.penaltyRate}%/day)
                 </Text>
               )}
               {item.referenceNumber ? <Text style={styles.cardRef}>Ref: {item.referenceNumber}</Text> : null}

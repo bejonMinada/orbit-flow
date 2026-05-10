@@ -70,7 +70,7 @@ function IncomeExpenseBar({ income, expenses }: { income: number; expenses: numb
   );
 }
 
-function SavingsBar({ income, expenses }: { income: number; expenses: number }) {
+function SavingsBar({ income, expenses, currency }: { income: number; expenses: number; currency: string }) {
   const savings = income - expenses;
   const savingsPct = income > 0 ? Math.max(0, Math.min(100, (savings / income) * 100)) : 0;
   const color = savingsPct >= 20 ? Colors.cashIn : savingsPct >= 5 ? Colors.warning : Colors.cashOut;
@@ -84,7 +84,7 @@ function SavingsBar({ income, expenses }: { income: number; expenses: number }) 
         <View style={[chartStyles.progressFill, { width: `${savingsPct}%`, backgroundColor: color }]} />
       </View>
       <Text style={chartStyles.savingsHint}>
-        {savings >= 0 ? `Saving ${formatAmount(savings, 'PHP')} of income` : `Overspent by ${formatAmount(Math.abs(savings), 'PHP')}`}
+        {savings >= 0 ? `Saving ${formatAmount(savings, currency)} of income` : `Overspent by ${formatAmount(Math.abs(savings), currency)}`}
       </Text>
     </View>
   );
@@ -218,7 +218,7 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Savings Overview</Text>
       <View style={styles.chartCard}>
-        <SavingsBar income={chartData.totalIncome} expenses={chartData.totalExpenses} />
+        <SavingsBar income={chartData.totalIncome} expenses={chartData.totalExpenses} currency="PHP" />
       </View>
 
       <Text style={styles.sectionTitle}>Top Expense Categories</Text>

@@ -1,18 +1,16 @@
 import { getDb } from '../db/database';
 import { formatAmount } from '../data/currencies';
 import { LendingRequest, LendingStatus } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 
 function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
 function generateTransactionCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 12; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
+  // Use UUID v4 (cryptographically random) and extract 12 alphanumeric characters
+  const raw = uuidv4().replace(/-/g, '').toUpperCase();
+  return raw.slice(0, 12);
 }
 
 function getLendingEntryNote(kind: 'cash_in' | 'cash_out', borrowerName: string, transactionCode: string, referenceNumber: string): string {
