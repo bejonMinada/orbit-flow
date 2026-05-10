@@ -6,6 +6,11 @@ function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function getLendingEntryNote(kind: 'cash_in' | 'cash_out', borrowerName: string, referenceNumber: string): string {
+  const action = kind === 'cash_out' ? 'Loan released to' : 'Loan settled by';
+  return `${action} ${borrowerName}${referenceNumber ? ` (${referenceNumber})` : ''}`;
+}
+
 function mapLendingRequest(r: {
   id: string; ledger_id: string; borrower_user_id: string; borrower_name: string;
   amount: number; currency: string; reference_number: string;
@@ -73,7 +78,7 @@ async function insertLedgerEntry(
       amount,
       currency,
       'cat_lending',
-      `${kind === 'cash_out' ? 'Loan released to' : 'Loan settled by'} ${borrowerName}${referenceNumber ? ` (${referenceNumber})` : ''}`,
+      getLendingEntryNote(kind, borrowerName, referenceNumber),
       occurredAt,
       'local',
       occurredAt,

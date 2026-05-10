@@ -13,6 +13,13 @@ import { Ledger, LendingRequest } from '../../types';
 import { RootTabParamList } from '../../navigation/BottomTabNavigator';
 import { formatLendingOutstanding, getLendingMetrics } from '../../utils/lending';
 
+const STATUS_LABEL: Record<LendingRequest['status'], string> = {
+  pending_admin_approval: 'Pending Admin Approval',
+  approved: 'Approved',
+  declined: 'Declined',
+  settled: 'Settled',
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
@@ -139,7 +146,7 @@ export default function HomeScreen() {
             <View style={styles.lendingTop}>
               <Text style={styles.lendingName}>{request.borrowerName}</Text>
               <Text style={[styles.lendingStatus, styles[`status_${request.status}` as keyof typeof styles]]}>
-                {request.status.replaceAll('_', ' ')}
+                {STATUS_LABEL[request.status]}
               </Text>
             </View>
             <Text style={styles.lendingAmount}>{formatAmount(request.amount, request.currency)}</Text>
