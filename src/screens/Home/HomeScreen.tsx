@@ -20,6 +20,13 @@ const STATUS_LABEL: Record<LendingRequest['status'], string> = {
   settled: 'Settled',
 };
 
+const STATUS_STYLE: Record<LendingRequest['status'], { color: string }> = {
+  pending_admin_approval: { color: Colors.warning },
+  approved: { color: Colors.approved },
+  declined: { color: Colors.declined },
+  settled: { color: Colors.settled },
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
@@ -145,7 +152,7 @@ export default function HomeScreen() {
           <View key={request.id} style={styles.lendingCard}>
             <View style={styles.lendingTop}>
               <Text style={styles.lendingName}>{request.borrowerName}</Text>
-              <Text style={[styles.lendingStatus, styles[`status_${request.status}` as keyof typeof styles]]}>
+              <Text style={[styles.lendingStatus, STATUS_STYLE[request.status]]}>
                 {STATUS_LABEL[request.status]}
               </Text>
             </View>
@@ -231,9 +238,5 @@ const styles = StyleSheet.create({
   lendingStatus: { fontSize: FontSize.xs, fontWeight: '700', textTransform: 'capitalize' },
   lendingAmount: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700', marginTop: 6 },
   lendingMeta: { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 4 },
-  status_pending_admin_approval: { color: Colors.warning },
-  status_approved: { color: Colors.approved },
-  status_declined: { color: Colors.declined },
-  status_settled: { color: Colors.settled },
   empty: { color: Colors.textMuted, fontSize: FontSize.sm, fontStyle: 'italic' },
 });

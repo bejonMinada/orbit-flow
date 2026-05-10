@@ -54,11 +54,10 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     ? items.filter((item) => item.name.toLowerCase().includes(normalizedSearch)
       || item.barcode?.toLowerCase().includes(normalizedSearch))
     : items;
-  const getItemCurrency = (item: TrackedItem) => (
-    item.priceHistory.length > 0
-      ? item.priceHistory[item.priceHistory.length - 1].currency
-      : currency
-  );
+  const getItemPriceLabel = (item: TrackedItem) => {
+    const latestPriceRecord = item.priceHistory[item.priceHistory.length - 1];
+    return formatAmount(latestPriceRecord?.price ?? item.lastPrice, latestPriceRecord?.currency ?? currency);
+  };
 
   return (
     <View style={styles.container}>
@@ -84,7 +83,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
             <View style={styles.cardLeft}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemPrice}>
-                {formatAmount(item.lastPrice, getItemCurrency(item))} / {item.unit}
+                {getItemPriceLabel(item)} / {item.unit}
               </Text>
               {item.barcode ? <Text style={styles.itemBarcode}>📷 {item.barcode}</Text> : null}
             </View>

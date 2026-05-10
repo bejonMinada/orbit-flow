@@ -116,7 +116,7 @@ export async function createLendingRequest(
 ): Promise<LendingRequest> {
   const db = getDb();
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error('Please enter a valid lending amount.');
+    throw new Error('Please enter a valid lending amount greater than zero.');
   }
 
   await ensureLendableBalance(ledgerId, amount, currency);
