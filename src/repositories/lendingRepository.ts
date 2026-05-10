@@ -89,7 +89,7 @@ async function insertLedgerEntry(
 async function ensureLendableBalance(ledgerId: string, amount: number, currency: string): Promise<void> {
   const balance = await getLedgerBalanceForCurrency(ledgerId, currency);
   if (amount > balance) {
-    throw new Error(`The selected ledger only has ${formatAmount(balance, currency)} available.`);
+    throw new Error(`Insufficient balance. The selected ledger has ${formatAmount(balance, currency)} available, but ${formatAmount(amount, currency)} is required.`);
   }
 }
 

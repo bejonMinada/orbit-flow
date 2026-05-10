@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, StyleSheet,
 } from 'react-native';
@@ -35,14 +35,17 @@ export default function BarcodeScannerModal({
     }
   }, [permission?.canAskAgain, permission?.granted, requestPermission, visible]);
 
-  const handleScan = (value: string) => {
+  const handleScan = useCallback((value: string) => {
     const cleanValue = value.trim();
     if (!cleanValue || locked) return;
 
     setLocked(true);
     onScanned(cleanValue);
     onClose();
-  };
+  }, [locked, onClose, onScanned]);
+  const handleBarcodeScanned = useCallback(({ data }: { data: string }) => {
+    handleScan(data);
+  }, [handleScan]);
 
   const hasPermission = permission?.granted;
 
@@ -66,7 +69,7 @@ export default function BarcodeScannerModal({
                 active={visible}
                 style={styles.camera}
                 facing="back"
-                onBarcodeScanned={({ data }) => handleScan(data)}
+                onBarcodeScanned={handleBarcodeScanned}
               />
               <View style={styles.scanGuide}>
                 <Text style={styles.scanGuideText}>Point the camera at a barcode or QR code.</Text>
