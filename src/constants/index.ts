@@ -63,6 +63,11 @@ export const Labels = {
   burnRate: 'Burn-Rate Forecast',
 };
 
+export const AppMeta = {
+  version: '1.0.0',
+  schemaVersion: '1.0.0',
+};
+
 export const SyncConstants = {
   cloudDataFilename: 'netto_data.json',
 };

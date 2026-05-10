@@ -34,8 +34,6 @@ type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemTrackerDetail'>
 const MIN_LIST_BOTTOM_PADDING = 120;
 const FAB_CLEARANCE = 92;
 const FAB_SIZE = 56;
-const PINNED_CHECKLIST_GAP = Spacing.sm;
-const PINNED_CHECKLIST_RIGHT_OFFSET = Spacing.lg + FAB_SIZE + PINNED_CHECKLIST_GAP;
 
 export default function ItemTrackerDetailScreen({ route }: Props) {
   const insets = useSafeAreaInsets();
@@ -240,7 +238,7 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
       || item.barcode?.toLowerCase().includes(normalizedSearch))
     : items;
   const pinnedChecklistStyle = useMemo(
-    () => ({ bottom: insets.bottom + Spacing.lg }),
+    () => ({ bottom: insets.bottom + Spacing.lg + FAB_SIZE + Spacing.sm }),
     [insets.bottom]
   );
 
@@ -338,8 +336,6 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
           <Text style={styles.scanBtnText}>Scan</Text>
         </TouchableOpacity>
       </View>
-      <Text style={[styles.longPressHint, isDark && { color: darkMuted }]}>Tip: Long-press an inventory item to edit or delete.</Text>
-
       <FlatList
         data={filteredItems}
         keyExtractor={(item) => item.id}
@@ -674,7 +670,6 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   searchBar: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
-  longPressHint: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 4, marginHorizontal: Spacing.md },
   searchInput: {
     flex: 1,
     borderWidth: 1,
@@ -686,12 +681,12 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.textPrimary,
   },
-  checklistHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, marginTop: Spacing.sm },
-  checklistActions: { flexDirection: 'row', gap: Spacing.xs },
+  checklistHeader: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.md, marginTop: Spacing.xs },
+  checklistActions: { flexDirection: 'row', gap: Spacing.xs, justifyContent: 'center', marginTop: Spacing.xs },
   pinnedChecklistSection: {
     position: 'absolute',
     left: Spacing.md,
-    right: PINNED_CHECKLIST_RIGHT_OFFSET,
+    right: Spacing.md,
     borderRadius: Radius.md,
     backgroundColor: Colors.surface,
     borderWidth: 1,
@@ -703,7 +698,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  checklistTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textPrimary },
+  checklistTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center' },
   generateBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: 6 },
   generateBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },
   savedBtn: { backgroundColor: Colors.surfaceAlt, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderWidth: 1, borderColor: Colors.border },
@@ -723,7 +718,7 @@ const styles = StyleSheet.create({
   editTinyBtnText: { color: Colors.textSecondary, fontSize: FontSize.xs, fontWeight: '600' },
   deleteTinyBtn: { backgroundColor: '#FEE2E2', borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 6 },
   deleteTinyBtnText: { color: Colors.danger, fontSize: FontSize.xs, fontWeight: '700' },
-  emptyMini: { color: Colors.textMuted, fontSize: FontSize.xs, marginHorizontal: Spacing.md, marginTop: Spacing.xs, fontStyle: 'italic' },
+  emptyMini: { color: Colors.textMuted, fontSize: FontSize.xs, marginHorizontal: Spacing.md, marginTop: Spacing.xs, fontStyle: 'italic', textAlign: 'center' },
   list: { padding: Spacing.md, paddingBottom: 100 },
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md,

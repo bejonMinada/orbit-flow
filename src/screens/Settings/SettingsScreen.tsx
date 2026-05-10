@@ -4,15 +4,17 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Spacing, Radius, FontSize, Labels, SyncConstants } from '../../constants';
+import {
+  Colors, Spacing, Radius, FontSize, Labels, SyncConstants, AppMeta,
+} from '../../constants';
 import { CURRENCIES } from '../../data/currencies';
 import { useThemeMode } from '../../theme/ThemeContext';
 import CurrencyDropdown from '../../components/CurrencyDropdown';
 import { getWorkspaceBaseCurrency, updateWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
 import { resetAllData } from '../../db/database';
 
-const HEADER_TEXT_COLOR = '#FFFFFF';
-const HEADER_SUBTEXT_COLOR = 'rgba(255,255,255,0.82)';
+const HEADER_TEXT_COLOR = Colors.textPrimary;
+const HEADER_SUBTEXT_COLOR = Colors.textSecondary;
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -72,9 +74,9 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
-      <View style={[styles.pageHeader, { paddingTop: insets.top + Spacing.md }]}>
-        <Text style={styles.pageHeaderTitle}>Settings</Text>
-        <Text style={styles.pageHeaderSubtitle}>Workspace, sync, and app preferences</Text>
+      <View style={[styles.pageHeader, isDark && { backgroundColor: '#12161D', borderBottomColor: darkBorder }, { paddingTop: insets.top + Spacing.sm }]}>
+        <Text style={[styles.pageHeaderTitle, isDark && { color: darkText }]}>Settings</Text>
+        <Text style={[styles.pageHeaderSubtitle, isDark && { color: darkMuted }]}>Workspace and app preferences</Text>
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: Spacing.md, paddingBottom: insets.bottom + Spacing.xxl }]}>
@@ -93,11 +95,11 @@ export default function SettingsScreen() {
         <Text style={[styles.sectionTitle, isDark && { color: darkMuted }]}>Data & Sync</Text>
         <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={() => Alert.alert('Export', `Export to ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Export Data</Text>
-          <Text style={[styles.rowArrow, isDark && { color: darkMuted }]}>{'>'}</Text>
+          <Text style={[styles.rowArrow, isDark && { color: darkMuted }]}>▸</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={() => Alert.alert('Import', `Import from ${SyncConstants.cloudDataFilename} is coming in Phase 2.`)}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Import Data</Text>
-          <Text style={[styles.rowArrow, isDark && { color: darkMuted }]}>{'>'}</Text>
+          <Text style={[styles.rowArrow, isDark && { color: darkMuted }]}>▸</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.row, isDark && { borderTopColor: darkBorder }]} onPress={() => Alert.alert('Google Drive', 'Google Drive sync coming in Phase 2.')}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Google Drive Sync</Text>
@@ -137,11 +139,11 @@ export default function SettingsScreen() {
         </View>
         <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Version</Text>
-          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>1.0.0 (Phase 1 MVP)</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{AppMeta.version} (Phase 1 MVP)</Text>
         </View>
         <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Schema Version</Text>
-          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>1.0.0</Text>
+          <Text style={[styles.rowValue, isDark && { color: darkMuted }]}>{AppMeta.schemaVersion}</Text>
         </View>
         <View style={[styles.row, isDark && { borderTopColor: darkBorder }]}>
           <Text style={[styles.rowLabel, isDark && { color: darkText }]}>Currencies</Text>
@@ -182,12 +184,12 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  pageHeader: { backgroundColor: Colors.primary, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
-  pageHeaderTitle: { color: HEADER_TEXT_COLOR, fontSize: FontSize.xl, fontWeight: 'bold' },
+  pageHeader: { backgroundColor: Colors.surface, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  pageHeaderTitle: { color: HEADER_TEXT_COLOR, fontSize: FontSize.lg, fontWeight: '700' },
   pageHeaderSubtitle: { color: HEADER_SUBTEXT_COLOR, fontSize: FontSize.sm, marginTop: 4 },
   content: { padding: Spacing.md },
   section: { backgroundColor: Colors.surface, borderRadius: Radius.md, marginBottom: Spacing.md, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 },
-  sectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textSecondary, paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.textSecondary, paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border },
   rowLabel: { fontSize: FontSize.md, color: Colors.textPrimary },
   rowValue: { fontSize: FontSize.sm, color: Colors.textSecondary },

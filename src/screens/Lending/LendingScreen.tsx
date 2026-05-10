@@ -76,7 +76,9 @@ export default function LendingScreen() {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
   const darkSurface = '#1F252F';
+  const darkBorder = '#334155';
   const darkText = '#E6E9EE';
+  const darkMuted = '#B8C2D1';
 
   const addMonthsWithDayClamp = (dateValue: string, months: number): string => {
     const parsed = new Date(dateValue);
@@ -340,9 +342,9 @@ export default function LendingScreen() {
 
   return (
     <View style={[styles.container, isDark && { backgroundColor: '#12161D' }]}>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
-        <Text style={styles.headerTitle}>{Labels.creditMonitor}</Text>
-        <Text style={styles.headerSubtitle}>
+      <View style={[styles.header, isDark && { backgroundColor: '#12161D', borderBottomColor: darkBorder }, { paddingTop: insets.top + Spacing.sm }]}>
+        <Text style={[styles.headerTitle, isDark && { color: darkText }]}>{Labels.creditMonitor}</Text>
+        <Text style={[styles.headerSubtitle, isDark && { color: darkMuted }]}>
           {lendingMetrics.pendingCount} pending · {lendingMetrics.approvedCount} active · {outstandingLabel}
         </Text>
       </View>
@@ -595,9 +597,9 @@ export default function LendingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { backgroundColor: Colors.primary, padding: Spacing.lg },
-  headerTitle: { color: '#fff', fontSize: FontSize.xl, fontWeight: 'bold' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.82)', fontSize: FontSize.sm, marginTop: 4 },
+  header: { backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
+  headerTitle: { color: Colors.textPrimary, fontSize: FontSize.lg, fontWeight: '700' },
+  headerSubtitle: { color: Colors.textSecondary, fontSize: FontSize.sm, marginTop: 4 },
   list: { padding: Spacing.md, paddingBottom: 100 },
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md,
@@ -653,7 +655,7 @@ const styles = StyleSheet.create({
   disabledBtn: { opacity: 0.65 },
   editBtn: { marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt, alignItems: 'center' },
   editBtnText: { color: Colors.textSecondary, fontWeight: '600' },
-  sectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textSecondary, marginTop: Spacing.md, marginBottom: Spacing.xs },
+  sectionTitle: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.textSecondary, marginTop: Spacing.md, marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
   installmentCard: { backgroundColor: Colors.surfaceAlt, padding: Spacing.sm, borderRadius: Radius.md, marginBottom: Spacing.xs },
   installmentTitle: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textPrimary },
   installmentMeta: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },

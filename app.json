@@ -2,6 +2,7 @@
   "expo": {
     "name": "Netto",
     "slug": "netto",
+    "description": "Track net cash, inventories, and settlements in one app.",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
