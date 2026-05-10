@@ -400,7 +400,7 @@ export async function updateLendingRequestDetails(
   const request = await getLendingRequestById(id);
   if (!request) throw new Error('Lending request not found.');
   if (request.status !== 'approved') {
-    throw new Error('Only approved settlement requests can be edited.');
+    throw new Error('Only approved lending requests can be edited.');
   }
   if (!Number.isFinite(updates.amount) || updates.amount <= 0) {
     throw new Error('Please enter a valid loan amount greater than zero.');
