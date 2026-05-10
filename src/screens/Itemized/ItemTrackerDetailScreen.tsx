@@ -33,7 +33,9 @@ import { useThemeMode } from '../../theme/ThemeContext';
 type Props = NativeStackScreenProps<ItemizedStackParamList, 'ItemTrackerDetail'>;
 const MIN_LIST_BOTTOM_PADDING = 120;
 const FAB_CLEARANCE = 92;
-const PINNED_CHECKLIST_RIGHT_OFFSET = 86;
+const FAB_SIZE = 56;
+const PINNED_CHECKLIST_GAP = Spacing.sm;
+const PINNED_CHECKLIST_RIGHT_OFFSET = Spacing.lg + FAB_SIZE + PINNED_CHECKLIST_GAP;
 
 export default function ItemTrackerDetailScreen({ route }: Props) {
   const insets = useSafeAreaInsets();
@@ -259,13 +261,15 @@ export default function ItemTrackerDetailScreen({ route }: Props) {
     };
   };
   const sessionTotals = useMemo(() => {
+    const itemById = new Map(items.map((item) => [item.id, item] as const));
+    const itemByName = new Map(items.map((item) => [item.name.trim().toLowerCase(), item] as const));
     const totals: Record<string, number> = {};
     for (const session of sessions) {
       const list = sessionItemsBySession[session.id] ?? [];
       totals[session.id] = list.reduce((sum, sessionItem) => {
         const tracked = sessionItem.trackedItemId
-          ? items.find((item) => item.id === sessionItem.trackedItemId)
-          : items.find((item) => item.name.trim().toLowerCase() === sessionItem.itemName.trim().toLowerCase());
+          ? itemById.get(sessionItem.trackedItemId)
+          : itemByName.get(sessionItem.itemName.trim().toLowerCase());
         if (!tracked) return sum;
         return sum + ((sessionItem.plannedQuantity || 0) * (tracked.lastPrice || 0));
       }, 0);

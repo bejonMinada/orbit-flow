@@ -11,6 +11,9 @@ import CurrencyDropdown from '../../components/CurrencyDropdown';
 import { getWorkspaceBaseCurrency, updateWorkspaceBaseCurrency } from '../../repositories/workspaceRepository';
 import { resetAllData } from '../../db/database';
 
+const HEADER_TEXT_COLOR = '#FFFFFF';
+const HEADER_SUBTEXT_COLOR = 'rgba(255,255,255,0.82)';
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [baseCurrency, setBaseCurrency] = useState('PHP');
@@ -180,8 +183,8 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   pageHeader: { backgroundColor: Colors.primary, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
-  pageHeaderTitle: { color: '#fff', fontSize: FontSize.xl, fontWeight: 'bold' },
-  pageHeaderSubtitle: { color: 'rgba(255,255,255,0.82)', fontSize: FontSize.sm, marginTop: 4 },
+  pageHeaderTitle: { color: HEADER_TEXT_COLOR, fontSize: FontSize.xl, fontWeight: 'bold' },
+  pageHeaderSubtitle: { color: HEADER_SUBTEXT_COLOR, fontSize: FontSize.sm, marginTop: 4 },
   content: { padding: Spacing.md },
   section: { backgroundColor: Colors.surface, borderRadius: Radius.md, marginBottom: Spacing.md, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 },
   sectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textSecondary, paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
