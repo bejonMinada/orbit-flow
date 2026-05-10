@@ -18,7 +18,12 @@
       ]
     },
     "plugins": [
-      "expo-camera",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow OrbitFlow to use your camera for barcode and QR scanning."
+        }
+      ],
       "expo-image-picker"
     ]
   }
